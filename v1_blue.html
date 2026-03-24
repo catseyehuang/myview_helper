@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyView Helper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Roboto', 'Noto Sans TC', sans-serif;
+            background-color: #f0f9ff;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .card-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card-shadow:active {
+            transform: scale(0.98);
+        }
+
+        /* 首頁單元固定配色 (依 Unit 1~5 循環) */
+        .home-unit-1 { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); } /* Blue */
+        .home-unit-2 { background: linear-gradient(135deg, #10b981 0%, #059669 100%); } /* Green */
+        .home-unit-3 { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); } /* Amber */
+        .home-unit-4 { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); } /* Orange */
+        .home-unit-5 { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); } /* Violet */
+        .home-unit-default { background: linear-gradient(135deg, #64748b 0%, #475569 100%); } /* Slate */
+
+        .btn-white {
+            background-color: white;
+            color: #1f2937;
+            border: 1px solid #e5e7eb;
+        }
+
+        /* Playing Animation */
+        .playing {
+            background-color: #fffbeb !important; /* Amber-50 */
+            border-color: #f59e0b !important;
+            transform: scale(1.02);
+            transition: all 0.3s ease;
+        }
+
+        /* Loading Screen */
+        #loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border-left-color: #4f46e5;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <div id="loading-overlay">
+        <div class="spinner mb-4"></div>
+        <p class="text-gray-600 font-medium">正在從雲端載入課文筆記...</p>
+    </div>
+
+    <header class="bg-indigo-600 text-white p-4 shadow-lg sticky top-0 z-50">
+        <div class="max-w-3xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="goHome()">
+                <i class="fas fa-book-open text-2xl"></i>
+                <h1 id="header-title" class="text-xl font-bold tracking-wide">MyView Helper</h1>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="navBtn" onclick="goBack()" class="hidden text-sm bg-indigo-500 hover:bg-indigo-400 px-3 py-2 rounded-lg transition">
+                    <i class="fas fa-arrow-left mr-1"></i> Back
+                </button>
+                <button onclick="toggleQuickNav()" class="text-white hover:bg-indigo-500 p-2 rounded transition" title="快速選單">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow p-4 max-w-3xl mx-auto w-full" id="app">
+        </main>
+
+    <footer class="bg-gray-100 text-gray-500 text-center p-4 text-xs">
+        <p>© 2025 MyView Learning Helper</p>
+    </footer>
+
+    <div id="stopFloatingBtn" class="fixed bottom-6 right-6 z-50 hidden">
+        <button onclick="stopAllPlayback()" class="bg-red-500 hover:bg-red-600 text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center text-xl animate-bounce">
+            <i class="fas fa-stop"></i>
+        </button>
+    </div>
+
+    <!-- Quick Nav Modal -->
+    <div id="quick-nav-modal" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/50 transition-opacity" onclick="toggleQuickNav()"></div>
+        <div class="absolute right-0 top-0 bottom-0 w-64 bg-white shadow-2xl transform transition-transform overflow-y-auto">
+            <div class="p-4 bg-indigo-600 text-white flex justify-between items-center sticky top-0 z-10 shadow-md">
+                <h2 class="font-bold text-lg">Quick Nav</h2>
+                <button onclick="toggleQuickNav()" class="hover:text-gray-200"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div id="quick-nav-list" class="p-4"></div>
+        </div>
+    </div>
+
+    <script>
+        // Data Structure
+        let db = {
+            grade1: [],
+            grade2: [],
+            exams: []
+        };
+
+        // State
+        let currentView = 'home'; 
+        let currentGrade = null;
+        let currentUnitGroup = null; // 用來記錄現在選的是哪個 Grade 的哪個 Unit (例如 "g1-u5")
+        let currentUnit = null;
+        let isPlayingSequence = false;
+        let currentExam = null; // 用來記錄當前正在進行的考試複習
+        let availableVoices = [];
+        let quizState = null; // 測驗狀態
+
+        // Initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            initVoices();
+            fetchDataFromDrive(); // Start fetching data
+        });
+
+        // --- GAS Data Fetching ---
+        function fetchDataFromDrive() {
+            google.script.run
+                .withSuccessHandler(onDataLoaded)
+                .withFailureHandler(onDataError)
+                .getAllDataFromDrive();
+        }
+
+        function onDataLoaded(cloudData) {
+            console.log("Data loaded form Drive:", cloudData);
+            
+            // 將雲端抓下來的資料塞入 db
+            db = cloudData;
+            renderQuickNav(); // 產生快速導航選單
+            
+            // 隱藏 Loading 動畫
+            document.getElementById('loading-overlay').style.display = 'none';
+            
+            // 渲染首頁
+            renderHome();
+        }
+
+        function onDataError(error) {
+            const errorMessage = `
+                <div class="text-red-500 text-center mt-10">
+                    <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
+                    <p class="font-bold">Failed to load data</p>
+                    <p class="text-sm text-gray-400 mt-1">${error.message || 'An unknown error occurred.'}</p>
+                    <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded">Retry</button>
+                </div>
+            `;
+            const loadingOverlay = document.getElementById('loading-overlay');
+            if (loadingOverlay.style.display !== 'none') {
+                loadingOverlay.innerHTML = errorMessage;
+            } else {
+                document.getElementById('app').innerHTML = errorMessage;
+            }
+        }
+
+        // --- On-Demand Loading ---
+        function showAppLoading(message = 'Loading...') {
+            const app = document.getElementById('app');
+            app.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-64">
+                    <div class="spinner mb-4"></div>
+                    <p class="text-gray-600 font-medium">${message}</p>
+                </div>
+            `;
+            // Scroll to top
+            window.scrollTo(0, 0);
+        }
+
+        // --- Voice Logic ---
+        function initVoices() {
+            window.speechSynthesis.onvoiceschanged = () => {
+                availableVoices = window.speechSynthesis.getVoices();
+            };
+            availableVoices = window.speechSynthesis.getVoices();
+        }
+
+        function getBestVoice(lang) {
+            if (!availableVoices.length) availableVoices = window.speechSynthesis.getVoices();
+            const langVoices = availableVoices.filter(v => v.lang.replace('_', '-').includes(lang));
+            if (langVoices.length === 0) return null;
+            const enhancedVoice = langVoices.find(v => 
+                v.name.includes('Google') || 
+                v.name.includes('Microsoft') || 
+                v.name.includes('Premium') ||
+                v.name.includes('Enhanced')
+            );
+            return enhancedVoice || langVoices[0];
+        }
+
+        function speakDual(enText, zhText, elementId, onComplete) {
+            if (!('speechSynthesis' in window)) {
+                alert("您的裝置不支援語音功能");
+                return;
+            }
+            window.speechSynthesis.cancel();
+            highlightCard(elementId);
+
+            const enUtterance = new SpeechSynthesisUtterance(enText);
+            enUtterance.lang = 'en-US';
+            enUtterance.rate = 0.8; // 語速調整
+            const bestEnVoice = getBestVoice('en');
+            if (bestEnVoice) enUtterance.voice = bestEnVoice;
+
+            const zhUtterance = new SpeechSynthesisUtterance(zhText);
+            zhUtterance.lang = 'zh-TW';
+            zhUtterance.rate = 1.0;
+            const bestZhVoice = getBestVoice('zh');
+            if (bestZhVoice) zhUtterance.voice = bestZhVoice;
+
+            enUtterance.onend = () => {
+                if (isPlayingSequence || !onComplete) {
+                     window.speechSynthesis.speak(zhUtterance);
+                }
+            };
+            enUtterance.onerror = () => window.speechSynthesis.speak(zhUtterance);
+            zhUtterance.onend = () => {
+                removeHighlight(elementId);
+                if (onComplete) onComplete();
+            };
+            window.speechSynthesis.speak(enUtterance);
+        }
+
+        function playAllSequence(items, startIndex, idPrefix) {
+            if (startIndex >= items.length) {
+                stopAllPlayback();
+                return;
+            }
+            isPlayingSequence = true;
+            document.getElementById('stopFloatingBtn').classList.remove('hidden');
+
+            const item = items[startIndex];
+            // 如果是標題分隔線 (沒有 en 或 word)，則跳過不朗讀
+            if (!item.en && !item.word && typeof item !== 'string') {
+                playAllSequence(items, startIndex + 1, idPrefix);
+                return;
+            }
+
+            const elementId = `${idPrefix}-${startIndex}`;
+            const el = document.getElementById(elementId);
+            if(el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+            let enText = item.en || item.word;
+            if (!enText && typeof item === 'string') enText = item; // 支援純字串
+
+            if (item.def) enText += `. ${item.def}`;
+            if (item.example) enText += `. Example: ${item.example}`; 
+
+            let zhText = item.zh || '';
+            if (item.zhDef) zhText += `。${item.zhDef}`;
+            if (item.zhExample) zhText += `。例句：${item.zhExample}`;
+
+            speakDual(enText, zhText, elementId, () => {
+                if (isPlayingSequence) {
+                    setTimeout(() => {
+                        if (isPlayingSequence) playAllSequence(items, startIndex + 1, idPrefix);
+                    }, 800);
+                }
+            });
+        }
+
+        function stopAllPlayback() {
+            isPlayingSequence = false;
+            window.speechSynthesis.cancel();
+            document.getElementById('stopFloatingBtn').classList.add('hidden');
+            document.querySelectorAll('.playing').forEach(el => el.classList.remove('playing'));
+        }
+
+        function highlightCard(elementId) {
+            document.querySelectorAll('.playing').forEach(el => el.classList.remove('playing'));
+            if (elementId) {
+                const el = document.getElementById(elementId);
+                if (el) el.classList.add('playing');
+            }
+        }
+
+        function removeHighlight(elementId) {
+            if (elementId) {
+                const el = document.getElementById(elementId);
+                if (el) el.classList.remove('playing');
+            }
+        }
+
+        // --- Navigation ---
+
+        function updateNav(showBack) {
+            const navBtn = document.getElementById('navBtn');
+            if (showBack) navBtn.classList.remove('hidden');
+            else navBtn.classList.add('hidden');
+        }
+
+        function goHome() {
+            stopAllPlayback();
+            currentView = 'home';
+            currentGrade = null;
+            currentUnitGroup = null;
+            renderHome();
+            updateNav(false);
+        }
+
+        function goBack() {
+            stopAllPlayback();
+            if (currentView === 'unit_menu') {
+                goHome(); // 回到首頁
+            } else if (['highlights', 'vocab', 'fulltext', 'words_practice'].includes(currentView)) {
+                if (currentExam) {
+                    renderExamDashboard(currentExam); // 如果是考試模式，回到考試儀表板
+                } else {
+                    renderUnitMenu(currentUnit); // 否則回到單元選單
+                }
+            } else if (currentView === 'grade_menu') {
+                goHome();
+            } else if (currentView === 'exam_dashboard') {
+                renderExamList();
+            } else if (currentView === 'exam_list') {
+                goHome();
+            } else if (['exam_quiz', 'quiz_result'].includes(currentView)) {
+                renderExamDashboard(currentExam);
+            }
+        }
+
+        // --- Navigation & Data Loading ---
+        function toggleQuickNav() {
+            const modal = document.getElementById('quick-nav-modal');
+            modal.classList.toggle('hidden');
+        }
+
+        async function jumpToUnit(gradeDbKey, id) {
+            toggleQuickNav();
+            showAppLoading('Loading unit...');
+            try {
+                const unit = await loadUnitData(gradeDbKey, id);
+                renderUnitMenu(unit);
+            } catch (error) {
+                onDataError(error);
+            }
+        }
+
+        function toggleGradeAccordion(btn) {
+            const content = btn.nextElementSibling;
+            const icon = btn.querySelector('i');
+            content.classList.toggle('hidden');
+            if (content.classList.contains('hidden')) {
+                icon.className = 'fas fa-chevron-right text-xs text-indigo-400';
+            } else {
+                icon.className = 'fas fa-chevron-down text-xs text-indigo-400';
+            }
+        }
+
+        async function loadUnitData(gradeDbKey, id) {
+            const gradeData = db[gradeDbKey] || [];
+            const unitIndex = gradeData.findIndex(u => u.id === id);
+            
+            if (unitIndex === -1) {
+                throw new Error(`Unit with id ${id} not found in ${gradeDbKey}`);
+            }
+
+            // Check if full data is already cached (e.g., by checking for a 'content' key)
+            if (db[gradeDbKey][unitIndex].content !== undefined || db[gradeDbKey][unitIndex].vocab !== undefined) {
+                return db[gradeDbKey][unitIndex];
+            }
+
+            // Not cached, so fetch from GAS
+            return new Promise((resolve, reject) => {
+                google.script.run
+                    .withSuccessHandler(fullUnitData => {
+                        // Cache the full data by replacing the lightweight object
+                        db[gradeDbKey][unitIndex] = fullUnitData;
+                        resolve(fullUnitData);
+                    })
+                    .withFailureHandler(reject)
+                    .getUnitData(id); // Assumes this new backend function exists
+            });
+        }
+
+        function renderQuickNav() {
+            const list = document.getElementById('quick-nav-list');
+            if (!list) return;
+            
+            let html = '';
+            const grades = { 'Grade 1': db.grade1 || [], 'Grade 2': db.grade2 || [] };
+            
+            Object.keys(grades).forEach(gradeLabel => {
+                const lessons = grades[gradeLabel];
+                if (lessons.length === 0) return;
+
+                // Group by Unit
+                const units = {};
+                lessons.forEach(l => {
+                    if (!units[l.unit]) units[l.unit] = [];
+                    units[l.unit].push(l);
+                });
+
+                // 預設將 Grade 1 收合 (collapsed)
+                const isCollapsed = gradeLabel === 'Grade 1';
+                const contentClass = isCollapsed ? 'hidden' : '';
+                const iconClass = isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down';
+
+                html += `<div class="mb-6">
+                    <button onclick="toggleGradeAccordion(this)" class="w-full flex justify-between items-center font-bold text-indigo-800 border-b-2 border-indigo-100 pb-1 mb-3 text-sm focus:outline-none hover:bg-indigo-50 rounded px-1 transition">
+                        <span>${gradeLabel}</span>
+                        <i class="fas ${iconClass} text-xs text-indigo-400"></i>
+                    </button>
+                    <div class="${contentClass} transition-all">`;
+                
+                Object.keys(units).sort((a,b) => parseInt(a)-parseInt(b)).forEach(unitNum => {
+                    const unitLessons = units[unitNum];
+                    unitLessons.sort((a,b) => a.week - b.week);
+                    
+                    html += `<div class="mb-4">
+                        <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 pl-1">Unit ${unitNum}</div>
+                        <div class="space-y-1 pl-2 border-l-2 border-gray-100">`;
+                    
+                    unitLessons.forEach(l => {
+                        const gradeDbKey = gradeLabel === 'Grade 1' ? 'grade1' : 'grade2';
+                        html += `
+                            <button onclick="jumpToUnit('${gradeDbKey}', '${l.id}')" class="block w-full text-left text-sm text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded transition truncate flex items-center">
+                                <span class="font-mono text-xs text-gray-400 w-6 mr-1">W${l.week}</span>
+                                <span class="truncate">${l.title}</span>
+                            </button>
+                        `;
+                    });
+                    
+                    html += `</div></div>`;
+                });
+                html += `</div></div>`;
+            });
+            
+            list.innerHTML = html;
+        }
+
+        // --- Renders ---
+
+        // 1. 首頁：列出所有單元 (Grade X, Unit Y)
+        function renderHome() {
+            currentView = 'home';
+            const app = document.getElementById('app');
+            currentExam = null; // 清除考試狀態
+            
+            // Check if db is empty (error handling or empty state)
+            if (!db.grade1.length && !db.grade2.length) {
+                app.innerHTML = `<div class="text-center text-gray-500 mt-10">資料夾中沒有 JSON 檔案</div>`;
+                return;
+            }
+
+            // 整理資料：找出所有存在的 Grade 和 Unit
+            // 結構: groups['Grade 1']['Unit 5'] = [lessons...]
+            const groups = {};
+
+            const processLessons = (lessons, gradeLabel) => {
+                lessons.forEach(lesson => {
+                    const unitKey = `Unit ${lesson.unit}`;
+                    if (!groups[gradeLabel]) groups[gradeLabel] = {};
+                    if (!groups[gradeLabel][unitKey]) groups[gradeLabel][unitKey] = [];
+                    groups[gradeLabel][unitKey].push(lesson);
+                });
+            };
+
+            processLessons(db.grade1, 'Grade 1');
+            processLessons(db.grade2, 'Grade 2');
+
+            let html = `
+                <div class="mb-6 text-center animate-fade-in">
+                    <h2 class="text-2xl font-bold text-gray-800">Welcome to MyView Helper</h2>
+                    <p class="text-gray-500 mt-2">Please select a unit to begin</p>
+                </div>
+                <div class="space-y-6">
+            `;
+
+            // 產生按鈕
+            Object.keys(groups).sort().forEach(gradeKey => {
+                const units = groups[gradeKey];
+                // 排序 Unit 1, Unit 2...
+                const sortedUnits = Object.keys(units).sort((a, b) => {
+                    return parseInt(a.replace('Unit ', '')) - parseInt(b.replace('Unit ', ''));
+                });
+
+                sortedUnits.forEach(unitKey => {
+                    const unitNum = parseInt(unitKey.replace('Unit ', ''));
+                    // 根據 Unit 號碼決定 CSS Class (1~5, 超過5用 default)
+                    const colorClass = (gradeKey !== 'Grade 1' && unitNum >= 1 && unitNum <= 5) ? `home-unit-${unitNum}` : 'home-unit-default';
+                    const lessonCount = units[unitKey].length;
+
+                    html += `
+                        <button onclick="renderGradeMenu('${gradeKey}', '${unitKey}')" class="${colorClass} w-full text-white rounded-2xl p-6 shadow-lg transform transition hover:scale-[1.02] active:scale-95 flex items-center justify-between group">
+                        <div class="text-left">
+                                <h3 class="text-2xl font-bold mb-1">${gradeKey}, ${unitKey}</h3>
+                                <p class="text-white/90 text-sm">${lessonCount} lessons available</p>
+                        </div>
+                            <div class="bg-white/20 p-3 rounded-full">
+                                <i class="fas fa-layer-group text-2xl"></i>
+                </div>
+                        </button>
+            `;
+                });
+            });
+
+            // 考前綜合複習按鈕
+            html += `
+                <div class="mt-8 border-t border-gray-200 pt-6">
+                    <button onclick="renderExamList()" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl p-6 shadow-lg transform transition hover:scale-[1.02] active:scale-95 flex items-center justify-between group">
+                        <div class="text-left">
+                            <h3 class="text-2xl font-bold mb-1">Exam Review</h3>
+                            <p class="text-white/90 text-sm">Cross-unit vocabulary and highlights</p>
+                        </div>
+                        <div class="bg-white/20 p-3 rounded-full"><i class="fas fa-graduation-cap text-2xl"></i></div>
+                    </button>
+                </div>
+            `;
+
+            html += `</div>`;
+            app.innerHTML = html;
+            updateNav(false);
+        }
+
+        // 顯示該 Grade 該 Unit 下的所有課程 (Week 1, Week 2...)
+        function renderGradeMenu(gradeKey, unitKey) {
+            currentView = 'grade_menu';
+            const app = document.getElementById('app');
+            
+            // 從 db 中篩選出符合的課程
+            const gradeData = (gradeKey === 'Grade 1') ? db.grade1 : db.grade2;
+            const targetUnit = parseInt(unitKey.replace('Unit ', ''));
+            const lessons = gradeData.filter(l => l.unit === targetUnit);
+
+            // 取得 Unit 主題色 (從 bgClass 抓取該單元第一課的顏色做代表，或是用預設)
+            // 這裡我們直接用 bgClass 動態產生邊框顏色
+            
+            let html = `
+                <div class="mb-6 text-center animate-fade-in">
+                    <h2 class="text-2xl font-bold text-gray-800">${gradeKey}, ${unitKey}</h2>
+                    <p class="text-gray-500">Please select a lesson (Week)</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            `;
+
+            lessons.forEach(lesson => {
+                // 直接抓取 JSON 中的 colorClass (例如 "blue-500")，如果沒有則預設 gray-400
+                const themeColor = lesson.colorClass || 'gray-400'; 
+                const iconClass = lesson.icon ? (lesson.icon.startsWith('fa-') ? `fas ${lesson.icon}` : `fas fa-${lesson.icon}`) : 'fas fa-book';
+                    
+                    html += `
+                    <div onclick='renderUnitMenuFromId("${gradeKey === 'Grade 1' ? 'grade1' : 'grade2'}", "${lesson.id}")' class="bg-white rounded-xl p-5 card-shadow cursor-pointer hover:bg-gray-50 relative overflow-hidden group border-l-[6px]" style="border-color: var(--tw-color-${themeColor}) !important; border-left-color: ${tailwindColorMap(themeColor)}">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                <h3 class="font-bold text-lg text-gray-800 group-hover:text-${themeColor} transition">${lesson.title}</h3>
+                                <p class="text-gray-600 font-medium">${lesson.subtitle}</p>
+                                <span class="inline-block mt-2 text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">${lesson.type}</span>
+                                </div>
+                            <i class="${iconClass} text-3xl text-gray-300 group-hover:text-${themeColor} transition"></i>
+                            </div>
+                        </div>
+                    `;
+                });
+
+            html += `</div>`;
+            app.innerHTML = html;
+            updateNav(true);
+        }
+
+        async function renderUnitMenuFromId(gradeDbKey, id) {
+            showAppLoading('Loading unit...');
+            try {
+                const unit = await loadUnitData(gradeDbKey, id);
+                renderUnitMenu(unit);
+            } catch (error) {
+                console.error("Failed to load unit:", error);
+                onDataError(error);
+            }
+        }
+
+        // --- Exam Mode Renders ---
+
+        function renderExamList() {
+            currentView = 'exam_list';
+            const app = document.getElementById('app');
+            
+            let html = `
+                <div class="mb-6 text-center animate-fade-in">
+                    <h2 class="text-2xl font-bold text-gray-800">Exam Review</h2>
+                    <p class="text-gray-500">Please select an exam scope</p>
+                </div>
+                <div class="space-y-4">
+            `;
+
+            // 改用 db.exams
+            (db.exams || []).forEach((exam, index) => {
+                // 將 Range ID 轉換為 Title 顯示
+                const rangeListHtml = exam.ranges.map(id => {
+                    let displayText = id;
+                    const parts = id.split('_');
+                    if (parts.length === 3) {
+                        const g = parts[0].replace('G', '');
+                        const gradeKey = `grade${g}`;
+                        if (db[gradeKey]) {
+                            const found = db[gradeKey].find(u => u.id === id);
+                            if (found) displayText = found.title;
+                        }
+                    }
+                    return `<div class="truncate">• ${displayText}</div>`;
+                }).join('');
+
+                html += `
+                    <button onclick="renderExamDashboard(db.exams[${index}])" class="w-full bg-white border-l-[6px] border-indigo-500 rounded-xl p-6 shadow-md hover:bg-gray-50 transition text-left flex justify-between items-center">
+                        <div class="overflow-hidden pr-2">
+                            <h3 class="text-xl font-bold text-gray-800">${exam.title}</h3>
+                            <div class="text-gray-500 text-sm mt-2 space-y-1">${rangeListHtml}</div>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-300 flex-shrink-0"></i>
+                    </button>
+                `;
+            });
+
+            html += `</div>`;
+            app.innerHTML = html;
+            updateNav(true);
+        }
+
+        function renderExamDashboard(exam) {
+            currentView = 'exam_dashboard';
+            currentExam = exam;
+            const app = document.getElementById('app');
+
+            app.innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="rounded-lg p-6 shadow-md mb-6 text-white bg-gradient-to-r from-indigo-600 to-purple-600 flex justify-between items-start">
+                        <div>
+                            <h2 class="text-2xl font-bold">${exam.title}</h2>
+                            <p class="text-white/90 text-sm mt-1">包含 ${exam.ranges.length} 個單元內容</p>
+                        </div>
+                        <i class="fas fa-graduation-cap text-4xl text-white/30"></i>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4">
+                        <button onclick="enterExamHighlights()" class="btn-white rounded-xl p-6 shadow-md flex items-center justify-between hover:bg-gray-50 transition transform hover:-translate-y-1 border-l-4 border-indigo-500">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-indigo-100 text-indigo-600 p-3 rounded-full"><i class="fas fa-highlighter text-2xl"></i></div>
+                                <div class="text-left">
+                                    <h3 class="text-xl font-bold text-gray-800">Review Highlights</h3>
+                                    <p class="text-gray-500 text-sm">Aggregated highlights and Q&A</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+
+                        <button onclick="enterExamVocab()" class="btn-white rounded-xl p-6 shadow-md flex items-center justify-between hover:bg-gray-50 transition transform hover:-translate-y-1 border-l-4 border-green-500">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-green-100 text-green-600 p-3 rounded-full"><i class="fas fa-spell-check text-2xl"></i></div>
+                                <div class="text-left">
+                                    <h3 class="text-xl font-bold text-gray-800">Review Vocabulary</h3>
+                                    <p class="text-gray-500 text-sm">Aggregated vocabulary and examples</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+
+                        <button onclick="enterExamQuiz()" class="btn-white rounded-xl p-6 shadow-md flex items-center justify-between hover:bg-gray-50 transition transform hover:-translate-y-1 border-l-4 border-orange-500">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-orange-100 text-orange-600 p-3 rounded-full"><i class="fas fa-question-circle text-2xl"></i></div>
+                                <div class="text-left">
+                                    <h3 class="text-xl font-bold text-gray-800">Vocabulary Quiz</h3>
+                                    <p class="text-gray-500 text-sm">See English, choose Chinese</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+
+                        <button onclick="enterSpellingQuiz()" class="btn-white rounded-xl p-6 shadow-md flex items-center justify-between hover:bg-gray-50 transition transform hover:-translate-y-1 border-l-4 border-cyan-500">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-cyan-100 text-cyan-600 p-3 rounded-full"><i class="fas fa-keyboard text-2xl"></i></div>
+                                <div class="text-left">
+                                    <h3 class="text-xl font-bold text-gray-800">Spelling Test</h3>
+                                    <p class="text-gray-500 text-sm">Listen to the word and spell it</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            updateNav(true);
+        }
+
+        async function enterExamHighlights() {
+            showAppLoading('Aggregating highlights...');
+            const units = await getUnitsFromRanges(currentExam.ranges);
+            let aggregatedContent = [];
+            units.forEach(u => {
+                const hasHighlights = u.highlights && u.highlights.length > 0;
+                const hasQa = u.qa && u.qa.length > 0;
+
+                if (hasHighlights || hasQa) {
+                    // 加入單元標題作為分隔
+                    aggregatedContent.push({ title: `${u.title} (${u.subtitle})` });
+                    if (hasHighlights) {
+                        aggregatedContent = aggregatedContent.concat(u.highlights);
+                    }
+                    if (hasQa) {
+                        if (hasHighlights) {
+                            aggregatedContent.push({ title: "Q&A Practice" });
+                        }
+                        aggregatedContent = aggregatedContent.concat(u.qa);
+                    }
+                }
+            });
+
+            // 建立一個虛擬的 Unit 物件來騙過 renderHighlights
+            currentUnit = {
+                title: currentExam.title + " - Highlights",
+                highlights: aggregatedContent,
+                qa: [] // qa is empty because we've already combined it
+            };
+            renderHighlights();
+        }
+
+        async function enterExamVocab() {
+            showAppLoading('Aggregating vocabulary...');
+            const units = await getUnitsFromRanges(currentExam.ranges);
+            let aggregatedVocab = [];
+            units.forEach(u => {
+                if (u.vocab) {
+                    aggregatedVocab.push({ title: `${u.title} (${u.subtitle})` });
+                    aggregatedVocab = aggregatedVocab.concat(u.vocab);
+                }
+            });
+
+            // 建立一個虛擬的 Unit 物件
+            currentUnit = {
+                title: currentExam.title + " - Vocabulary",
+                vocab: aggregatedVocab
+            };
+            renderVocab();
+        }
+
+        // --- Quiz Logic ---
+
+        async function enterExamQuiz() {
+            showAppLoading('Preparing quiz...');
+            const units = await getUnitsFromRanges(currentExam.ranges);
+            let allVocab = [];
+            units.forEach(u => {
+                if (u.vocab) allVocab = allVocab.concat(u.vocab);
+            });
+
+            // 簡單去重 (依據單字拼寫)
+            const uniqueVocab = [];
+            const seenWords = new Set();
+            allVocab.forEach(v => {
+                const wordKey = v.word.toLowerCase().trim();
+                if (!seenWords.has(wordKey)) {
+                    seenWords.add(wordKey);
+                    uniqueVocab.push(v);
+                }
+            });
+
+            if (uniqueVocab.length < 4) {
+                alert("Not enough vocabulary (at least 4 unique words required) in this range to start a quiz.");
+                return;
+            }
+
+            // 洗牌並取出最多 20 題
+            uniqueVocab.sort(() => Math.random() - 0.5);
+            const quizItems = uniqueVocab.slice(0, 20);
+
+            // 產生題目與選項
+            const questions = quizItems.map(target => {
+                // 隨機選 3 個干擾項
+                const distractors = uniqueVocab
+                    .filter(v => v.word !== target.word)
+                    .sort(() => Math.random() - 0.5)
+                    .slice(0, 3);
+                
+                // 混合選項並再次洗牌
+                const options = [target, ...distractors].sort(() => Math.random() - 0.5);
+                return { target, options };
+            });
+
+            quizState = {
+                questions,
+                currentIndex: 0,
+                score: 0,
+                type: 'multiple_choice'
+            };
+
+            renderQuizQuestion();
+        }
+
+        function renderQuizQuestion() {
+            currentView = 'exam_quiz';
+            const app = document.getElementById('app');
+            updateNav(true);
+
+            const q = quizState.questions[quizState.currentIndex];
+            const progress = `${quizState.currentIndex + 1} / ${quizState.questions.length}`;
+
+            let html = `
+                <div class="animate-fade-in max-w-xl mx-auto">
+                    <div class="mb-6 flex justify-between items-center">
+                        <span class="text-gray-500 font-bold">Question ${progress}</span>
+                        <span class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-full text-sm font-bold">Score: ${quizState.score}</span>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-lg p-8 text-center mb-8 border-b-4 border-indigo-500">
+                        <p class="text-gray-500 text-sm mb-2">What is the meaning of:</p>
+                        <h2 class="text-4xl font-bold text-gray-800 mb-4">${q.target.word}</h2>
+                        <button onclick="speakDual('${escapeForHtml(q.target.word)}', '', null)" class="text-indigo-500 hover:text-indigo-600 text-xl transition w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center mx-auto">
+                            <i class="fas fa-volume-up"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            `;
+
+            q.options.forEach((opt, idx) => {
+                html += `
+                    <button id="quiz-opt-${idx}" onclick="checkQuizAnswer(${idx})" class="bg-white border-2 border-gray-200 hover:border-indigo-400 hover:bg-indigo-50 text-gray-700 font-medium rounded-xl p-4 text-left transition relative group text-lg">
+                        <span class="font-bold text-gray-400 mr-3 w-6 inline-block">${String.fromCharCode(65 + idx)}.</span>
+                        ${opt.zh}
+                    </button>
+                `;
+            });
+
+            html += `</div></div>`;
+            app.innerHTML = html;
+        }
+
+        function checkQuizAnswer(selectedIndex) {
+            const q = quizState.questions[quizState.currentIndex];
+            const isCorrect = q.options[selectedIndex].word === q.target.word;
+
+            // 鎖定所有按鈕並顯示正確答案
+            q.options.forEach((opt, idx) => {
+                const btn = document.getElementById(`quiz-opt-${idx}`);
+                btn.disabled = true;
+                btn.classList.remove('hover:border-indigo-400', 'hover:bg-indigo-50'); // 移除 hover 效果
+                
+                if (opt.word === q.target.word) {
+                    btn.classList.add('bg-green-100', 'border-green-500', 'text-green-800');
+                    btn.innerHTML += ` <i class="fas fa-check float-right mt-1 text-green-600"></i>`;
+                } else if (idx === selectedIndex && !isCorrect) {
+                    btn.classList.add('bg-red-100', 'border-red-500', 'text-red-800');
+                    btn.innerHTML += ` <i class="fas fa-times float-right mt-1 text-red-600"></i>`;
+                }
+            });
+
+            if (isCorrect) quizState.score++;
+
+            // 延遲後進入下一題
+            setTimeout(() => {
+                quizState.currentIndex++;
+                if (quizState.currentIndex < quizState.questions.length) {
+                    renderQuizQuestion();
+                } else {
+                    renderQuizResult('multiple_choice');
+                }
+            }, 1500);
+        }
+
+        async function enterSpellingQuiz() {
+            showAppLoading('Preparing spelling test...');
+            const units = await getUnitsFromRanges(currentExam.ranges);
+            let allWords = [];
+            units.forEach(u => {
+                if (u.vocab) allWords = allWords.concat(u.vocab);
+                if (u.spelling) allWords = allWords.concat(u.spelling);
+                if (u.HFW) allWords = allWords.concat(u.HFW);
+            });
+
+            const uniqueWords = [];
+            const seenWords = new Set();
+            allWords.forEach(v => {
+                // Only include words with definitions for this quiz type
+                if (v.word && v.def) {
+                    const wordKey = v.word.toLowerCase().trim();
+                    if (!seenWords.has(wordKey)) {
+                        seenWords.add(wordKey);
+                        uniqueWords.push(v);
+                    }
+                }
+            });
+
+            if (uniqueWords.length < 1) {
+                alert("No words with definitions found in this range to conduct a spelling test.");
+                renderExamDashboard(currentExam);
+                return;
+            }
+
+            uniqueWords.sort(() => Math.random() - 0.5);
+            const quizItems = uniqueWords.slice(0, 20);
+
+            quizState = {
+                questions: quizItems.map(item => ({ target: item })),
+                currentIndex: 0,
+                score: 0,
+                type: 'spelling'
+            };
+
+            renderSpellingQuestion();
+        }
+
+        function renderSpellingQuestion() {
+            currentView = 'exam_quiz';
+            const app = document.getElementById('app');
+            updateNav(true);
+
+            const q = quizState.questions[quizState.currentIndex];
+            const progress = `${quizState.currentIndex + 1} / ${quizState.questions.length}`;
+
+            let html = `
+                <div class="animate-fade-in max-w-xl mx-auto">
+                    <div class="mb-6 flex justify-between items-center">
+                        <span class="text-gray-500 font-bold">Question ${progress}</span>
+                        <span class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-full text-sm font-bold">Score: ${quizState.score}</span>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-lg p-8 mb-8 border-b-4 border-indigo-500">
+                        <p class="text-gray-500 text-sm mb-2">Definition:</p>
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">${q.target.def}</h2>
+                        <button onclick="speakDual('${escapeForHtml(q.target.word)}', '', null)" class="text-indigo-500 hover:text-indigo-600 text-xl transition w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center mx-auto">
+                            <i class="fas fa-volume-up"></i>
+                        </button>
+                    </div>
+
+                    <div id="spelling-input-area" class="space-y-4">
+                        <input id="spelling-input" type="text" placeholder="Type the word here..."
+                               class="w-full text-center text-2xl p-4 rounded-xl border-2 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 transition"
+                               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                        <button onclick="checkSpellingAnswer()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow hover:bg-green-700 transition text-lg">
+                            Check Answer
+                        </button>
+                    </div>
+                </div>
+            `;
+            app.innerHTML = html;
+            
+            const inputEl = document.getElementById('spelling-input');
+            inputEl.focus();
+            inputEl.addEventListener('keyup', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    checkSpellingAnswer();
+                }
+            });
+            
+            setTimeout(() => speakDual(q.target.word, '', null), 500);
+        }
+
+        function checkSpellingAnswer() {
+            const inputEl = document.getElementById('spelling-input');
+            const userAnswer = inputEl.value.trim().toLowerCase();
+            const correctAnswer = quizState.questions[quizState.currentIndex].target.word.toLowerCase();
+            const isCorrect = userAnswer === correctAnswer;
+
+            document.getElementById('spelling-input-area').innerHTML = `
+                <input id="spelling-input" type="text" value="${inputEl.value}" disabled
+                       class="w-full text-center text-2xl p-4 rounded-xl border-2 transition ${isCorrect ? 'bg-green-50 border-green-500 text-green-800' : 'bg-red-50 border-red-500 text-red-800'}">
+                ${!isCorrect ? `<p class="text-center text-green-600 font-bold text-lg mt-2">Correct answer: <span class="font-mono">${quizState.questions[quizState.currentIndex].target.word}</span></p>` : ''}
+            `;
+
+            if (isCorrect) quizState.score++;
+
+            setTimeout(() => {
+                quizState.currentIndex++;
+                if (quizState.currentIndex < quizState.questions.length) {
+                    renderSpellingQuestion();
+                } else {
+                    renderQuizResult('spelling');
+                }
+            }, isCorrect ? 1500 : 3000);
+        }
+
+        function renderQuizResult(quizType) {
+            currentView = 'quiz_result';
+            const app = document.getElementById('app');
+            const score = quizState.score;
+            const total = quizState.questions.length;
+            const percentage = Math.round((score / total) * 100);
+            
+            let message = '';
+            let icon = '';
+            let colorClass = '';
+
+            if (percentage === 100) {
+                message = 'Perfect Score! Amazing! 🎉';
+                icon = 'fa-trophy';
+                colorClass = 'text-yellow-500';
+            } else if (percentage >= 80) {
+                message = 'Great job! Keep it up! 👍';
+                icon = 'fa-thumbs-up';
+                colorClass = 'text-green-500';
+            } else if (percentage >= 60) {
+                message = 'Not bad! A little more practice! 💪';
+                icon = 'fa-star-half-alt';
+                colorClass = 'text-blue-500';
+            } else {
+                message = 'You can do it! Review and try again! 📚';
+                icon = 'fa-book-reader';
+                colorClass = 'text-gray-500';
+            }
+            const retryFunction = quizType === 'spelling' ? 'enterSpellingQuiz()' : 'enterExamQuiz()';
+
+            app.innerHTML = `
+                <div class="animate-fade-in text-center py-10">
+                    <div class="mb-6">
+                        <i class="fas ${icon} text-6xl ${colorClass} mb-4 animate-bounce"></i>
+                        <h2 class="text-3xl font-bold text-gray-800">Score: ${score} / ${total}</h2>
+                        <p class="text-gray-500 mt-2">(${percentage}%)</p>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-xl shadow-md max-w-sm mx-auto mb-8">
+                        <p class="text-xl font-bold text-gray-700">${message}</p>
+                    </div>
+
+                    <div class="space-y-4 max-w-xs mx-auto">
+                        <button onclick="${retryFunction}" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow hover:bg-indigo-700 transition">
+                            <i class="fas fa-redo mr-2"></i> Try Again
+                        </button>
+                        <button onclick="renderExamDashboard(currentExam)" class="w-full bg-white text-gray-700 border border-gray-300 py-3 rounded-xl font-bold shadow-sm hover:bg-gray-50 transition">
+                            <i class="fas fa-arrow-left mr-2"></i> Back to Review Menu
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function getUnitsFromRanges(ranges) {
+            showAppLoading('Loading exam data...');
+            const unitPromises = ranges.map(id => {
+                const parts = id.split('_');
+                if (parts.length === 3) {
+                    const g = parts[0].replace('G', '');
+                    const gradeKey = `grade${g}`;
+                    return loadUnitData(gradeKey, id);
+                }
+                return Promise.resolve(null); // Ignore invalid IDs
+            });
+            const units = await Promise.all(unitPromises);
+            return units.filter(u => u !== null);
+        }
+
+        // 3. 單元主選單：Highlights, Vocab, Video...
+        function renderUnitMenu(unit) {
+            currentUnit = unit;
+            currentView = 'unit_menu';
+            const app = document.getElementById('app');
+            updateNav(true);
+
+            // 防呆：檢查陣列是否存在且長度 > 0
+            const hasContent = (unit.highlights && unit.highlights.length > 0) || (unit.qa && unit.qa.length > 0);
+            const hasVocab = unit.vocab && unit.vocab.length > 0;
+            const hasFullText = unit.content && unit.content.length > 0;
+            
+            // 顏色處理：從 JSON 讀取 "blue-500"，組裝成 bg-blue-500
+            const themeColor = unit.colorClass || 'gray-500';
+            const iconClass = unit.icon ? (unit.icon.startsWith('fa-') ? `fas ${unit.icon}` : `fas fa-${unit.icon}`) : 'fas fa-book';
+
+            app.innerHTML = `
+                <div class="animate-fade-in">
+                    <div class="rounded-lg p-6 shadow-md mb-6 text-white bg-${themeColor} flex justify-between items-start">
+                        <div>
+                            <h2 class="text-xl font-bold">${unit.title}</h2>
+                            <p class="text-white/90">${unit.subtitle}</p>
+                            <p class="text-xs bg-white/20 inline-block px-2 py-1 rounded mt-2">${unit.type}</p>
+                        </div>
+                        <i class="${iconClass} text-4xl text-white/30"></i>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4">
+                        
+                        ${hasContent ? `
+                        <button onclick="renderHighlights()" class="btn-white rounded-xl p-6 shadow-md flex items-center justify-between hover:bg-gray-50 transition transform hover:-translate-y-1 border-l-4 border-${themeColor}">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-yellow-100 text-yellow-600 p-3 rounded-full"><i class="fas fa-highlighter text-2xl"></i></div>
+                                <div class="text-left">
+                                    <h3 class="text-xl font-bold text-gray-800">Highlights</h3>
+                                    <p class="text-gray-500 text-sm">課文重點與 Q&A</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        ` : ''}
+
+                        ${hasVocab ? `
+                        <button onclick="renderVocab()" class="btn-white rounded-xl p-6 shadow-md flex items-center justify-between hover:bg-gray-50 transition transform hover:-translate-y-1 border-l-4 border-${themeColor}">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-indigo-100 text-indigo-600 p-3 rounded-full"><i class="fas fa-spell-check text-2xl"></i></div>
+                                <div class="text-left">
+                                    <h3 class="text-xl font-bold text-gray-800">Vocabulary</h3>
+                                    <p class="text-gray-500 text-sm">重點單字與例句</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        ` : ''}
+
+                        ${((unit.spelling && unit.spelling.length > 0) || (unit.HFW && unit.HFW.length > 0)) ? `
+                        <button onclick="renderWordsPractice()" class="btn-white rounded-xl p-6 shadow-md flex items-center justify-between hover:bg-pink-50 transition transform hover:-translate-y-1 border-l-4 border-pink-500">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-pink-100 text-pink-600 p-3 rounded-full"><i class="fas fa-pencil-alt text-2xl"></i></div>
+                                <div class="text-left">
+                                    <h3 class="text-xl font-bold text-gray-800">Spelling & HFW</h3>
+                                    <p class="text-gray-500 text-sm">拼字與高頻單字練習</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        ` : ''}
+
+                         ${hasFullText ? `
+                        <button onclick="renderFullText()" class="btn-white rounded-xl p-6 shadow-md flex items-center justify-between hover:bg-gray-50 transition transform hover:-translate-y-1 border-l-4 border-${themeColor}">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-blue-100 text-blue-600 p-3 rounded-full"><i class="fas fa-file-alt text-2xl"></i></div>
+                                <div class="text-left">
+                                    <h3 class="text-xl font-bold text-gray-800">Full Text</h3>
+                                    <p class="text-gray-500 text-sm">全部課文朗讀</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        ` : ''}
+
+                        ${unit.video ? `
+                        <a href="${unit.video}" target="_blank" class="btn-white rounded-xl p-6 shadow-md flex items-center justify-between hover:bg-red-50 transition transform hover:-translate-y-1 group border-l-4 border-red-500">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-red-100 text-red-500 p-3 rounded-full group-hover:bg-red-200 transition"><i class="fab fa-youtube text-2xl"></i></div>
+                                <div class="text-left">
+                                    <h3 class="text-xl font-bold text-gray-800 group-hover:text-red-600 transition">Video Review</h3>
+                                    <p class="text-gray-500 text-sm group-hover:text-red-400 transition">影片複習 (YouTube)</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-external-link-alt text-gray-400 group-hover:text-red-400 transition"></i>
+                        </a>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- View Renderers ---
+
+        function renderHighlights() {
+            currentView = 'highlights';
+
+            let combinedList = [];
+            if (currentUnit.highlights && currentUnit.highlights.length > 0) {
+                combinedList = combinedList.concat(currentUnit.highlights);
+            }
+            if (currentUnit.qa && currentUnit.qa.length > 0) {
+                if (combinedList.length > 0) {
+                    combinedList.push({ title: "Q&A Practice" });
+                }
+                combinedList = combinedList.concat(currentUnit.qa);
+            }
+
+            // Highlights 列表統一使用 indigo 色系，乾淨清楚
+            renderTextList('Highlights', combinedList, 'highlight', 'bg-indigo-600 hover:bg-indigo-700', 'border-indigo-400', 'text-indigo-600');
+        }
+
+        function renderFullText() {
+            currentView = 'fulltext';
+            // Full Text 列表統一使用 blue 色系
+            renderTextList('Full Text', currentUnit.content, 'fulltext', 'bg-blue-600 hover:bg-blue-700', 'border-blue-400', 'text-blue-600');
+        }
+
+        function renderTextList(viewTitle, dataList, idPrefix, btnColorClass, borderClass, titleColorClass) {
+            const unit = currentUnit;
+            const app = document.getElementById('app');
+            
+            let html = `
+                <div class="mb-4 sticky top-16 bg-[#f0f9ff] py-2 z-10 shadow-sm -mx-4 px-4">
+                    <div class="text-sm font-bold text-gray-500 mb-1">${unit.title}</div>
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-2xl font-bold text-gray-800">${viewTitle}</h2>
+                        <button id="play-all-btn" class="${btnColorClass} text-white px-4 py-2 rounded-full text-sm font-bold shadow-md transition">
+                            <i class="fas fa-play mr-1"></i> 全部播放
+                        </button>
+                    </div>
+                </div>
+                <div class="space-y-4 pb-20">
+            `;
+
+            if (dataList) {
+                dataList.forEach((item, index) => {
+                    const cardId = `${idPrefix}-${index}`;
+                    
+                    if (item.title && !item.en) {
+                        html += `<h3 class="text-lg font-bold ${titleColorClass} mt-6 mb-2 border-b border-gray-200 pb-1">${item.title}</h3>`;
+                        return;
+                    }
+
+                    const label = item.title ? `<span class="block text-xs font-bold ${titleColorClass} mb-1 tracking-wider uppercase">${item.title}</span>` : '';
+
+                    html += `
+                        <div id="${cardId}" class="bg-white p-5 rounded-lg card-shadow border-l-4 border-transparent hover:${borderClass}">
+                            ${label}
+                            <div class="flex gap-3">
+                                <div class="flex-grow">
+                                    <p class="text-lg font-medium text-gray-800 mb-2 leading-snug">${item.en}</p>
+                                    <p class="text-gray-600 text-base border-t border-gray-100 pt-2 mt-1">${item.zh}</p>
+                                </div>
+                                <button onclick="stopAllPlayback(); speakDual(\`${escapeForHtml(item.en)}\`, \`${escapeForHtml(item.zh)}\`, '${cardId}')" class="flex-shrink-0 w-10 h-10 bg-gray-100 ${titleColorClass} rounded-full flex items-center justify-center hover:${btnColorClass} hover:text-white transition">
+                                    <i class="fas fa-volume-up"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                html += `<div class="text-center text-gray-400 py-10">暫無內容</div>`;
+            }
+            html += `</div>`;
+            app.innerHTML = html;
+
+            const playAllBtn = document.getElementById('play-all-btn');
+            if (playAllBtn) {
+                playAllBtn.addEventListener('click', () => playAllSequence(dataList, 0, idPrefix));
+            }
+
+            updateNav(true);
+        }
+
+        function renderVocab() {
+            currentView = 'vocab';
+            const unit = currentUnit;
+            const app = document.getElementById('app');
+            
+            let html = `
+                <div class="mb-4 sticky top-16 bg-[#f0f9ff] py-2 z-10 shadow-sm -mx-4 px-4">
+                    <div class="text-sm font-bold text-gray-500 mb-1">${unit.title}</div>
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-2xl font-bold text-gray-800">Vocabulary</h2>
+                        <button onclick="playAllSequence(currentUnit.vocab, 0, 'vocab')" class="bg-green-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-md hover:bg-green-700 transition">
+                            <i class="fas fa-play mr-1"></i> 全部播放
+                        </button>
+                    </div>
+                </div>
+                <div class="space-y-4 pb-20">
+            `;
+
+            if (unit.vocab) {
+                unit.vocab.forEach((item, index) => {
+                    if (item.title && !item.word) {
+                        html += `<h3 class="text-lg font-bold text-gray-700 mt-8 mb-4 border-b border-gray-200 pb-1">${item.title}</h3>`;
+                        return;
+                    }
+
+                    const cardId = `vocab-${index}`;
+                    
+                    // 構建朗讀文字 (包含例句)
+                    let enSpeak = `${item.word}. ${item.def}`;
+                    if (item.example) enSpeak += ` Example: ${item.example}`;
+                    let zhSpeak = `${item.zh}。${item.zhDef}`;
+                    if (item.zhExample) zhSpeak += ` 例句：${item.zhExample}`;
+                    
+                    html += `
+                        <div id="${cardId}" class="bg-white p-4 rounded-lg card-shadow border-l-4 border-transparent hover:border-green-400">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <div class="flex items-baseline gap-2 mb-1">
+                                        <h3 class="text-2xl font-bold text-indigo-700">${item.word}</h3>
+                                        <span class="text-gray-500 font-medium text-lg">${item.zh}</span>
+                                    </div>
+                                    <p class="text-gray-700 text-sm mb-1 font-medium">${item.def}</p>
+                                    <p class="text-gray-400 text-xs">${item.zhDef}</p>
+                                </div>
+                                <button onclick="stopAllPlayback(); speakDual(\`${escapeForHtml(enSpeak)}\`, \`${escapeForHtml(zhSpeak)}\`, '${cardId}')" class="flex-shrink-0 w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center hover:bg-green-600 hover:text-white transition shadow-sm ml-2">
+                                    <i class="fas fa-volume-up"></i>
+                                </button>
+                            </div>
+                            
+                            ${item.example ? `
+                            <div class="mt-3 bg-green-50 p-3 rounded text-sm border border-green-100">
+                                <p class="text-green-800 mb-1"><span class="font-bold text-xs uppercase text-green-600 mr-1">Ex</span> ${item.example}</p>
+                                <p class="text-green-600 text-xs">${item.zhExample || ''}</p>
+                            </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+            }
+            html += `</div>`;
+            app.innerHTML = html;
+            updateNav(true);
+        }
+
+        function renderWordsPractice() {
+            currentView = 'words_practice';
+            const app = document.getElementById('app');
+            let fullHtml = '';
+
+            if (currentUnit.spelling && currentUnit.spelling.length > 0) {
+                fullHtml += generateWordSectionHtml('Spelling Words', currentUnit.spelling, 'spelling', 'pink');
+            }
+
+            if (currentUnit.HFW && currentUnit.HFW.length > 0) {
+                if (fullHtml) fullHtml += '<div class="h-8"></div>';
+                fullHtml += generateWordSectionHtml('High Frequency Words', currentUnit.HFW, 'hfw', 'cyan');
+            }
+            
+            app.innerHTML = `<div class="pb-20">${fullHtml}</div>`;
+            updateNav(true);
+        }
+
+        function generateWordSectionHtml(title, rawList, idPrefix, colorName) {
+            const btnColorClass = `bg-${colorName}-600 hover:bg-${colorName}-700`;
+            const borderClass = `border-${colorName}-400`;
+            const titleColorClass = `text-${colorName}-600`;
+            const bgColorClass = `bg-${colorName}-50`;
+            const borderColorClass = `border-${colorName}-100`;
+            const textDarkColorClass = `text-${colorName}-800`;
+            const textLightColorClass = `text-${colorName}-600`;
+
+            let html = `
+                <div class="mb-4 sticky top-16 bg-[#f0f9ff] py-2 z-10 shadow-sm -mx-4 px-4">
+                    <div class="text-sm font-bold text-gray-500 mb-1">${currentUnit.title}</div>
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-2xl font-bold text-gray-800">${title}</h2>
+                        <button onclick="playAllSequence(currentUnit['${idPrefix}'], 0, '${idPrefix}')" class="${btnColorClass} text-white px-4 py-2 rounded-full text-sm font-bold shadow-md transition">
+                            <i class="fas fa-play mr-1"></i> 全部播放
+                        </button>
+                    </div>
+                </div>
+                <div class="space-y-4">
+            `;
+
+            rawList.forEach((item, index) => {
+                const cardId = `${idPrefix}-${index}`;
+                
+                // 構建朗讀文字 (包含例句)
+                let enSpeak = `${item.word}. ${item.def || ''}`;
+                if (item.example) enSpeak += ` Example: ${item.example}`;
+                let zhSpeak = `${item.zh}. ${item.zhDef || ''}`;
+                if (item.zhExample) zhSpeak += ` 例句：${item.zhExample}`;
+                
+                html += `
+                    <div id="${cardId}" class="bg-white p-4 rounded-lg card-shadow border-l-4 border-transparent hover:${borderClass}">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <div class="flex items-baseline gap-2 mb-1">
+                                    <h3 class="text-2xl font-bold text-indigo-700">${item.word}</h3>
+                                    <span class="text-gray-500 font-medium text-lg">${item.zh}</span>
+                                </div>
+                                <p class="text-gray-700 text-sm mb-1 font-medium">${item.def || ''}</p>
+                                <p class="text-gray-400 text-xs">${item.zhDef || ''}</p>
+                            </div>
+                            <button onclick="stopAllPlayback(); speakDual(\`${escapeForHtml(enSpeak)}\`, \`${escapeForHtml(zhSpeak)}\`, '${cardId}')" class="flex-shrink-0 w-10 h-10 ${bgColorClass} ${titleColorClass} rounded-full flex items-center justify-center hover:${btnColorClass} hover:text-white transition shadow-sm ml-2">
+                                <i class="fas fa-volume-up"></i>
+                            </button>
+                        </div>
+                        
+                        ${item.example ? `
+                        <div class="mt-3 ${bgColorClass} p-3 rounded text-sm border ${borderColorClass}">
+                            <p class="${textDarkColorClass} mb-1"><span class="font-bold text-xs uppercase ${textLightColorClass} mr-1">Ex</span> ${item.example}</p>
+                            <p class="${textLightColorClass} text-xs">${item.zhExample || ''}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            html += `</div>`;
+            return html;
+        }
+
+        // 字串跳脫處理：防止雙引號破壞 HTML onclick 屬性，以及反引號破壞 JS Template Literal
+        function escapeForHtml(str) {
+            if (!str) return '';
+            return str.replace(/`/g, '\\`').replace(/"/g, '&quot;');
+        }
+
+        // 小工具：協助在 JS 中生成 Tailwind 的 border-color 樣式 (解決 JIT 問題的折衷方案)
+        // 因為我們用的是 CDN JIT，直接寫 class="border-blue-500" 只要 CDN 掃得到就可以。
+        // 但為了保險，這裡做一個簡單的 map 應付 renderGradeMenu 的 style 屬性
+        function tailwindColorMap(colorName) {
+            const colors = {
+                'blue-500': '#3b82f6', 'blue-600': '#2563eb',
+                'green-500': '#22c55e', 'green-600': '#16a34a',
+                'emerald-500': '#10b981', 'emerald-600': '#059669',
+                'yellow-500': '#eab308', 'yellow-600': '#ca8a04',
+                'amber-500': '#f59e0b', 'amber-600': '#d97706',
+                'orange-500': '#f97316', 'orange-600': '#ea580c',
+                'violet-500': '#8b5cf6', 'violet-600': '#7c3aed',
+                'purple-500': '#a855f7', 'purple-600': '#9333ea',
+                'pink-500': '#ec4899', 'pink-600': '#db2777',
+                'red-500': '#ef4444', 'red-600': '#dc2626',
+                'sky-500': '#0ea5e9', 'sky-600': '#0284c7',
+                'indigo-500': '#6366f1', 'indigo-600': '#4f46e5',
+                'teal-500': '#14b8a6', 'teal-600': '#0d9488',
+                'cyan-500': '#06b6d4', 'cyan-600': '#0891b2',
+                'gray-500': '#6b7280', 'gray-600': '#4b5563'
+            };
+            // 嘗試回傳對應的 hex，找不到就回傳 colorName (瀏覽器有時也認得)
+            return colors[colorName] || colorName;
+        }
+    </script>
+</body>
+</html>
