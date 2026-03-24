@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌿 MyView Helper 🌿</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Sage Style Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        
+        body {
+            /* Sage Style: 柔和的鼠尾草綠與大地色系 */
+            font-family: 'Quicksand', 'Noto Sans TC', sans-serif;
+            background-color: #f4f7f6; /* 極淺的灰綠色 */
+            -webkit-tap-highlight-color: transparent;
+            color: #3e504c; /* 深鼠尾草綠 */
+        }
+
+        .card-shadow {
+            box-shadow: 0 10px 15px -3px rgba(138, 163, 153, 0.2), 0 4px 6px -2px rgba(138, 163, 153, 0.1);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+            border-radius: 1rem; /* 柔和的邊角，但不像可愛風那麼圓 */
+        }
+
+        .card-shadow:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 25px -5px rgba(138, 163, 153, 0.3), 0 10px 10px -5px rgba(138, 163, 153, 0.15);
+        }
+
+        .card-shadow:active {
+            transform: scale(0.98);
+        }
+
+        /* 首頁單元 Sage Style 漸層配色 */
+        .home-unit-1 { background: linear-gradient(135deg, #a3b899 0%, #7d9e8d 100%); } /* 鼠尾草綠 */
+        .home-unit-2 { background: linear-gradient(135deg, #d4b5b0 0%, #b8958f 100%); } /* 柔和陶土色 */
+        .home-unit-3 { background: linear-gradient(135deg, #b0c4de 0%, #8fa8c8 100%); } /* 灰藍色 */
+        .home-unit-4 { background: linear-gradient(135deg, #d9cd90 0%, #bfa860 100%); } /* 稻草黃 */
+        .home-unit-5 { background: linear-gradient(135deg, #a8a0b1 0%, #8a7f96 100%); } /* 柔和紫灰 */
+        .home-unit-default { background: linear-gradient(135deg, #a4acaa 0%, #838d8a 100%); } /* 石板灰 */
+
+        .btn-white {
+            background-color: #ffffff;
+            color: #3e504c;
+            border: 1px solid #e2e8e4;
+            border-radius: 1rem;
+        }
+
+        /* Playing Animation */
+        .playing {
+            background-color: #f0f4cd !important; /* 柔和的淡黃綠 */
+            border-color: #bfa860 !important;
+            transform: scale(1.02) !important;
+            box-shadow: 0 0 15px rgba(191, 168, 96, 0.3) !important;
+            transition: all 0.3s ease;
+        }
+
+        /* Loading Screen (Sage Style) */
+        #loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #f4f7f6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .sage-leaf {
+            font-size: 4rem;
+            color: #7d9e8d;
+            animation: floatLeaf 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes floatLeaf {
+            0% { transform: translateY(0) rotate(0deg); }
+            100% { transform: translateY(-15px) rotate(10deg); }
+        }
+
+        /* 標題區塊 Sage 漸層 */
+        .sage-header {
+            background: linear-gradient(135deg, #8ba79b 0%, #6c8a7c 100%);
+            border-bottom-left-radius: 1rem;
+            border-bottom-right-radius: 1rem;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Loading Screen -->
+    <div id="loading-overlay">
+        <div class="sage-leaf mb-4"><i class="fas fa-leaf"></i></div>
+        <p class="text-[#6c8a7c] font-bold text-xl tracking-wider"> Loading...正在整理筆記... 🌿</p>
+    </div>
+
+    <!-- Header -->
+    <header class="sage-header text-white p-4 shadow-md sticky top-0 z-50">
+        <div class="max-w-3xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer hover:opacity-90 transition" onclick="goHome()">
+                <div class="bg-white/20 rounded-lg p-2 w-12 h-12 flex items-center justify-center backdrop-blur-sm">
+                    <i class="fas fa-book-reader text-2xl text-white"></i>
+                </div>
+                <h1 id="header-title" class="text-2xl font-bold tracking-wide">MyView Helper</h1>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="navBtn" onclick="goBack()" class="hidden text-base bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition backdrop-blur-sm font-bold">
+                    <i class="fas fa-arrow-left mr-1"></i> Back
+                </button>
+                <button onclick="toggleQuickNav()" class="bg-white/10 hover:bg-white/20 p-2 w-12 h-12 rounded-lg transition flex items-center justify-center backdrop-blur-sm" title="Quick Menu">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Appears Here -->
+    <main class="flex-grow p-4 max-w-3xl mx-auto w-full" id="app"></main>
+
+    <!-- Footer -->
+     <footer class="text-[#8ba79b] text-center p-6 text-sm font-medium">
+        <p>Cultivating Knowledge 🌱 © 2026 MyView Helper</p>
+    </footer>
+
+    <!-- Global Stop Button -->
+    <div id="stopFloatingBtn" class="fixed bottom-6 right-6 z-50 hidden">
+        <button onclick="stopAllPlayback()" class="bg-[#d4b5b0] hover:bg-[#b8958f] text-white rounded-full w-16 h-16 shadow-lg flex items-center justify-center text-2xl transition-transform hover:scale-110">
+            <i class="fas fa-stop"></i>
+        </button>
+    </div>
+
+    <!-- Quick Nav Modal -->
+    <div id="quick-nav-modal" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-[#3e504c]/40 backdrop-blur-sm transition-opacity" onclick="toggleQuickNav()"></div>
+        <div class="absolute right-0 top-0 bottom-0 w-72 bg-[#fdfdfc] shadow-2xl transform transition-transform overflow-y-auto rounded-l-2xl border-l border-[#e2e8e4]">
+            <div class="p-5 sage-header text-white flex justify-between items-center sticky top-0 z-10 shadow-sm rounded-none rounded-tl-xl">
+                <h2 class="font-bold text-lg"><i class="fas fa-compass mr-2"></i> Quick Nav</h2>
+                <button onclick="toggleQuickNav()" class="hover:text-gray-200 transition"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div id="quick-nav-list" class="p-5"></div>
+        </div>
+    </div>
+
+    <script>
+        // --------------------------------------------------------
+        // 1. 本地測試資料 (Mock Data) - 作為 GAS 連線失敗時的備用方案，
+        // 確保介面可直接預覽測試。
+        // --------------------------------------------------------
+        const mockData = {
+            grade1: [
+                {
+                    id: "1_1", 
+                    grade: 1, 
+                    unit: 5, 
+                    week: 1, 
+                    title: "1.5.1 Every Season", 
+                    subtitle: "每一個季節 🌸", 
+                    type: "Informational Text", 
+                    icon: "fa-cloud-sun", 
+                    colorClass: "sage-green", 
+                    bgClass: "bg-[#8ba79b]",
+                    video: "https://www.youtube.com/watch?v=Tf6pJC9m2D0",
+                    content: [
+                        { title: "1", en: "I Love Spring when grass grows green.", zh: "我愛春天，草地變綠的時候。" },
+                        { title: "2", en: "Seeds sprout. Flowers bloom.", zh: "種子發芽，花兒綻放。" }
+                    ],
+                    highlights: [
+                        { title: "Spring 🌱", en: "I Love Spring when grass grows green. ... Seeds sprout. Flowers bloom.", zh: "我愛春天，草地變綠的時候。……種子發芽，花兒綻放。" }
+                    ],
+                    qa: [],
+                    vocab: [
+                        { word: "Spring", zh: "春天", def: "The season after winter and before summer.", zhDef: "冬天之後、夏天之前的季節。", example: "Spring is warm.", zhExample: "春天很溫暖。" }
+                    ],
+                    spelling: [],
+                    HFW: []
+                }
+            ],
+            grade2: [
+                {
+                  "id": "G2_U2_W2",
+                  "grade": 2,
+                  "unit": 2,
+                  "week": 2,
+                  "title": "2.2.2: A Home on the Prairie",
+                  "subtitle": "草原上的家",
+                  "type": "Informational Text",
+                  "icon": "fa-seedling",
+                  "colorClass": "amber-500",
+                  "bgClass": "bg-amber-500",
+                  "video": "https://www.youtube.com/watch?v=G3y1CzzhE5E",
+                  "highlights": [
+                    {
+                      "title": "Setting 故事背景",
+                      "en": "This informational text explores the North American prairie, a large, open grassland habitat with very few trees.",
+                      "zh": "這篇說明文探索了北美大草原，這是一個幾乎沒有樹木的廣闊、開闊的草地棲息地。"
+                    },
+                    {
+                      "title": "Plot 核心內容",
+                      "en": "The text describes various animals that live on the prairie, such as American bison, prairie dogs, and rattlesnakes, and explains how they survive in their environment through burrows and grazing.",
+                      "zh": "本文描述了生活在大草原上的各種動物（如美洲野牛、草原犬鼠和響尾蛇），並解釋了牠們如何透過洞穴和吃草在環境中生存。"
+                    },
+                    {
+                      "title": "Highlights",
+                      "en": "A prairie is a large, open grassland with almost no trees.",
+                      "zh": "大草原是一片廣闊、開闊的草地，幾乎沒有樹木。"
+                    },
+                    {
+                      "en": "Bison and deer are prairie grazers, which means they feed on prairie grasses.",
+                      "zh": "野牛和鹿是大草原上的食草動物，這意味著牠們以大草原上的草為食。"
+                    },
+                    {
+                      "en": "Many prairie animals live in underground holes called burrows.",
+                      "zh": "許多大草原動物生活在被稱為地穴的地下洞穴中。"
+                    },
+                    {
+                      "en": "Prairie dog burrows connect to form groups, or colonies. These colonies are almost like underground towns.",
+                      "zh": "草原犬鼠的地穴相連形成群體，或稱為聚落。這些聚落簡直就像地下城鎮。"
+                    }
+                  ],
+                  "qa": [
+                    {
+                      "title": "Q&A 練習",
+                      "en": "What kind of habitat is a prairie?",
+                      "zh": "問題：大草原是哪種棲息地？"
+                    },
+                    {
+                      "en": "A prairie is a large, open grassland with almost no trees where many different grasses grow.",
+                      "zh": "答案：大草原是一片幾乎沒有樹木的廣闊開闊草地，生長著許多不同種類的草。"
+                    },
+                    {
+                      "title": "Q&A 練習",
+                      "en": "What is a prairie colony?",
+                      "zh": "問題：什麼是草原群落？"
+                    },
+                    {
+                      "en": "Colonies are groups of animals, like prairie dogs, that live in connected burrows which are like underground towns.",
+                      "zh": "答案：群落是指像草原犬鼠這樣的一群動物，牠們居住在相連的洞穴中，就像地下小鎮一樣。"
+                    },
+                    {
+                      "en": "How does a rattlesnake warn its enemies?",
+                      "zh": "問題：響尾蛇如何警告牠的天敵？"
+                    },
+                    {
+                      "en": "A rattlesnake rattles its tail to warn its enemies to stay away.",
+                      "zh": "答案：響尾蛇會搖動尾巴發出響聲，以警告天敵遠離。"
+                    },
+                    {
+                      "en": "What do prairie grazers eat?",
+                      "zh": "問題：草原食草動物吃什麼？"
+                    },
+                    {
+                      "en": "Grazers like bison and deer feed on the tallgrass, mixed-grass, and short-grass that grow on the prairie.",
+                      "zh": "答案：食草動物如野牛和鹿，以生長在草原上的長草、混合草和短草為食。"
+                    }
+                  ],
+                  "vocab": [
+                    {
+                      "word": "prairie",
+                      "zh": "大草原",
+                      "def": "A large, open grassland with very few trees.",
+                      "zhDef": "幾乎沒有樹木的廣闊、開闊的草地。",
+                      "example": "North American grassland is called a prairie.",
+                      "zhExample": "北美的草地被稱為大草原。"
+                    },
+                    {
+                      "word": "habitat",
+                      "zh": "棲息地",
+                      "def": "The place where a plant or animal usually lives.",
+                      "zhDef": "植物或動物通常居住的地方。",
+                      "example": "Animals live in a habitat where they can find everything they need to live.",
+                      "zhExample": "動物生活在一個可以找到生存所需一切的棲息地中。"
+                    },
+                    {
+                      "word": "grazers",
+                      "zh": "食草動物",
+                      "def": "Animals that feed on growing grasses.",
+                      "zhDef": "以生長的草類為食的動物。",
+                      "example": "Bison and deer are prairie grazers.",
+                      "zhExample": "野牛和鹿是草原食草動物。"
+                    },
+                    {
+                      "word": "burrows",
+                      "zh": "洞穴",
+                      "def": "Holes or tunnels in the ground that are made by a small animal.",
+                      "zhDef": "由小動物在地面挖掘的孔洞或隧道。",
+                      "example": "Many prairie animals live in underground holes called burrows.",
+                      "zhExample": "許多草原動物住在被稱為「洞穴」的地下洞裡。"
+                    },
+                    {
+                      "word": "colonies",
+                      "zh": "群落",
+                      "def": "Groups of animals that live in one place.",
+                      "zhDef": "居住在同一個地方的一群動物。",
+                      "example": "Prairie dog burrows connect to form groups, or colonies.",
+                      "zhExample": "草原犬鼠的洞穴相連形成群落。"
+                    },
+                    {
+                      "word": "bison",
+                      "zh": "美洲野牛",
+                      "def": "Prairie animals with large heads and high, humped shoulders.",
+                      "zhDef": "頭部巨大且肩膀高聳隆起的草原動物。",
+                      "example": "American bison roam the prairies.",
+                      "zhExample": "美洲野牛在草原上漫遊。"
+                    }
+                    ],
+                    "content": [
+                    {
+                      "title": "1",
+                      "en": "What Is This Place? Just imagine you're surrounded by tall grass. When you look up, you see nothing but sky.",
+                      "zh": "這是什麼地方？想像一下你被高高的草叢包圍。抬頭一看，除了天空什麼也沒有。"
+                    },
+                    {
+                      "title": "2",
+                      "en": "You hear a rattlesnake shake its tail. You watch a prairie dog dive into a hole.",
+                      "zh": "你聽到響尾蛇搖動尾巴的聲音。我看著一隻草原犬鼠鑽進洞裡。"
+                    },
+                    {
+                      "title": "3",
+                      "en": "Where are we?",
+                      "zh": "我們在哪裡？"
+                    },
+                    {
+                      "title": "4",
+                      "en": "We're on a North American prairie!",
+                      "zh": "我們在北美大草原上！"
+                    },
+                    {
+                      "title": "5",
+                      "en": "A prairie is a type of habitat. A habitat is where a plant or animal usually lives.",
+                      "zh": "大草原是一種棲息地。棲息地通常是植物或動物生活的地方。"
+                    },
+                    {
+                      "title": "6",
+                      "en": "A prairie is a large, open grassland with almost no trees.",
+                      "zh": "大草原是一片廣闊、開闊的草地，幾乎沒有樹木。"
+                    },
+                    {
+                      "title": "7",
+                      "en": "Many different kinds of grasses grow on the prairie. There are tallgrass, mixed-grass, and short-grass prairies.",
+                      "zh": "大草原上生長著許多不同種類的草。有高草、混合草和短草大草原。"
+                    },
+                    {
+                      "title": "8",
+                      "en": "Bluestem and Indian grass are the tallest grasses on the prairie.",
+                      "zh": "藍莖草和印第安草是大草原上最高的草。"
+                    },
+                    {
+                      "title": "9",
+                      "en": "American bison roam the prairies. Another name for bison is buffalo.",
+                      "zh": "美洲野牛在大草原上漫遊。野牛的另一個名字是水牛 (buffalo)。"
+                    },
+                    {
+                      "title": "10",
+                      "en": "Bison and deer are prairie grazers, which means they feed on prairie grasses.",
+                      "zh": "野牛和鹿是大草原上的食草動物，這意味著牠們以大草原上的草為食。"
+                    },
+                    {
+                      "title": "11",
+                      "en": "Many prairie animals live in underground holes called burrows. Badgers, black-footed ferrets, prairie dogs, and burrowing owls all spend time in these holes.",
+                      "zh": "許多大草原動物生活在被稱為地穴的地下洞穴中。獾、黑足鼬、草原犬鼠和穴鴞都在這些洞穴裡消磨時間。"
+                    },
+                    {
+                      "title": "12",
+                      "en": "Prairie dog burrows connect to form groups, or colonies. These colonies are almost like underground towns.",
+                      "zh": "草原犬鼠的地穴相連形成群體，或稱為聚落。這些聚落簡直就像地下城鎮。"
+                    },
+                    {
+                      "title": "13",
+                      "en": "The prairie is an exciting place to explore! Peek among the tall grasses. You'll meet this black-footed ferret and other truly amazing animals that live in this habitat!",
+                      "zh": "大草原是一個令人興奮的探索之地！在高高的草叢中偷看。你會遇到這隻黑足鼬和其他生活在這個棲息地的真正令人驚奇的動物！"
+                    },
+                    {
+                      "title": "14",
+                      "en": "A Day in the Life of a Rattlesnake. How does a rattlesnake spend most of its time? A rattlesnake hides in burrows or under rocks or plants.",
+                      "zh": "響尾蛇生活中的一天。響尾蛇如何度過牠大部分的時間？響尾蛇躲在地穴裡，或者岩石或植物下。"
+                    },
+                    {
+                      "title": "15",
+                      "en": "What does a rattlesnake eat? A rattlesnake eats mice, ground squirrels, and younger prairie dogs and rabbits.",
+                      "zh": "響尾蛇吃什麼？響尾蛇吃老鼠、地松鼠以及較幼小的草原犬鼠和兔子。"
+                    },
+                    {
+                      "title": "16",
+                      "en": "What are a rattlesnake's enemies? Humans, hawks, and eagles are a rattlesnake's enemies.",
+                      "zh": "響尾蛇的天敵是什麼？人類、老鷹和雕是響尾蛇的天敵。"
+                    },
+                    {
+                      "title": "17",
+                      "en": "Does a rattlesnake have a special trick? A rattlesnake rattles its tail as a warning to stay away.",
+                      "zh": "響尾蛇有什麼特殊的把戲嗎？響尾蛇搖動尾巴作為警告，讓人遠離。"
+                    }
+                    ],
+                  "spelling": [
+                    {
+                      "word": "Sunday",
+                      "zh": "星期日",
+                      "def": "The first day of the week.",
+                      "zhDef": "一週的第一天。",
+                      "example": "The first day of the week is Sunday.",
+                      "zhExample": "一週的第一天是星期日。"
+                    },
+                    {
+                      "word": "Saturday",
+                      "zh": "星期六",
+                      "def": "The first day of the weekend.",
+                      "zhDef": "週末的第一天。",
+                      "example": "Saturday is the first day of the weekend.",
+                      "zhExample": "星期六是週末的第一天。"
+                    },
+                    {
+                      "word": "Thursday",
+                      "zh": "星期四",
+                      "def": "The day of the week before Friday.",
+                      "zhDef": "星期五之前的那一天。",
+                      "example": "Thursday was named after a God named Thor.",
+                      "zhExample": "星期四是以名為索爾的神來命名的。"
+                    },
+                    {
+                      "word": "Monday",
+                      "zh": "星期一",
+                      "def": "The day of the week after Sunday.",
+                      "zhDef": "星期日之後的那一天。",
+                      "example": "We go back to school on Monday after a fun weekend.",
+                      "zhExample": "在一個有趣的週末之後，我們星期一回到學校。"
+                    },
+                    {
+                      "word": "Friday",
+                      "zh": "星期五",
+                      "def": "The final day of the school week.",
+                      "zhDef": "上學週的最後一天。",
+                      "example": "The final day of the school week is Friday.",
+                      "zhExample": "上學週的最後一天是星期五。"
+                    },
+                    {
+                      "word": "brain",
+                      "zh": "大腦",
+                      "def": "The organ inside the head that controls thought.",
+                      "zhDef": "頭部內控制思想的器官。",
+                      "example": "I think with the big brain in my head.",
+                      "zhExample": "我用我頭部裡的大腦來思考。"
+                    },
+                    {
+                      "word": "pay",
+                      "zh": "支付",
+                      "def": "To give money for goods or work.",
+                      "zhDef": "為商品或工作給付金錢。",
+                      "example": "I had to pay a lot of money to buy a new car.",
+                      "zhExample": "我必須支付很多錢來買一輛新車。"
+                    },
+                    {
+                      "word": "paint",
+                      "zh": "顏料/畫",
+                      "def": "A colored liquid used for coloring surfaces.",
+                      "zhDef": "用於給表面著色的有色液體。",
+                      "example": "I used blue paint in Art class.",
+                      "zhExample": "我在美術課上使用了藍色顏料。"
+                    },
+                    {
+                      "word": "great",
+                      "zh": "很棒的/極好的",
+                      "def": "Very good or large.",
+                      "zhDef": "非常好的或巨大的。",
+                      "example": "This movie was really great, I loved it.",
+                      "zhExample": "這部電影真的很棒，我喜歡它。"
+                    },
+                    {
+                      "word": "break",
+                      "zh": "休息/打破",
+                      "def": "A pause in work or during an activity.",
+                      "zhDef": "工作或活動中的暫停。",
+                      "example": "When the class is over we have break time.",
+                      "zhExample": "下課後我們有休息時間。"
+                    }
+                    ],
+                  "HFW": [
+                    {
+                      "word": "air",
+                      "zh": "空氣",
+                      "def": "The invisible gas that surrounds the Earth.",
+                      "zhDef": "圍繞地球的無形氣體。",
+                      "example": "Animals and plants need air to breathe.",
+                      "zhExample": "動物和植物需要空氣來呼吸。"
+                    },
+                    {
+                      "word": "kind",
+                      "zh": "親切的/友善的",
+                      "def": "Helpful and generous to others.",
+                      "zhDef": "對他人有幫助且慷慨的。",
+                      "example": "The kind lady helped me find my mom.",
+                      "zhExample": "那位親切的女士幫我找到了媽媽。"
+                    },
+                    {
+                      "word": "change",
+                      "zh": "更換/改變",
+                      "def": "To make or become different.",
+                      "zhDef": "使...不同或變得不同。",
+                      "example": "I will change my mask if I sneeze.",
+                      "zhExample": "如果我打噴嚏，我就會更換口罩。"
+                    }
+                  ]
+                }
+            ],
+            exams: [
+                { title: "🌿 Review Test 1", ranges: ["1_1", "1_5"] },
+                { title: "🍂 Review Test 2", ranges: ["2_1", "2_2"] }
+            ]
+        };
+
+        // State
+        let db = { grade1: [], grade2: [], exams: [] };
+        let currentView = 'home'; 
+        let currentGrade = null;
+        let currentUnitGroup = null; 
+        let currentUnit = null;
+        let isPlayingSequence = false;
+        let currentExam = null; 
+        let availableVoices = [];
+        let quizState = null; 
+
+        // Initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            initVoices();
+            fetchDataFromDrive(); 
+        });
+
+        // --- GAS API Fetching ---
+        //2026-03-24 更新: 
+
+            const GAS_API_URL = "https://script.google.com/macros/s/AKfycbygTRoYhiLKqYmi9eM6J4bTBHIY1A2cz_vYG3PUHgB4Hn5gooArylWuZeSJCDYRTAKSZg/exec"; // MyView Helper GAS API URL (替換為實際 URL)
+
+        async function fetchDataFromDrive() {
+            try {
+                // 改用 fetch 呼叫遠端的 GAS API，並處理回傳的 JSON 資料
+                console.log("正在從 GAS 抓取資料...");
+                const response = await fetch(GAS_API_URL);
+                const data = await response.json();
+                onDataLoaded(cloudData);
+                
+                console.log("抓取成功：", data);
+                // 在這裡寫入將資料渲染到畫面的邏輯，例如：
+                // renderGrades(data.grade1, data.grade2);
+                
+            } catch (error) {
+                console.error("抓取資料失敗，改用本地測試資料", error);
+                onDataLoaded(mockData);
+            }
+
+        }
+
+        function onDataLoaded(cloudData) {
+            console.log("Data loaded:", cloudData);
+            db = cloudData;
+            renderQuickNav(); // 產生快速導航選單
+            
+            // 隱藏 Loading 動畫
+            const overlay = document.getElementById('loading-overlay');
+            overlay.style.opacity = '0';
+            overlay.style.transition = 'opacity 0.5s ease';
+            setTimeout(() => overlay.style.display = 'none', 500);
+            
+            // 渲染首頁
+            renderHome();
+        }
+
+        function onDataError(error) {
+            const errorMessage = `
+                <div class="text-[#b8958f] text-center mt-10 bg-white p-8 rounded-2xl shadow-md border border-[#e2e8e4]">
+                    <i class="fas fa-leaf text-5xl mb-4 opacity-50"></i>
+                    <p class="font-bold text-2xl">Connection Failed</p>
+                    <p class="text-lg text-[#8a7f96] mt-2">${error.message || 'Please try again later.'}</p>
+                    <button onclick="location.reload()" class="mt-6 px-6 py-3 bg-[#8ba79b] text-white text-lg font-bold rounded-xl hover:bg-[#6c8a7c] transition shadow-sm">Retry</button>
+                </div>
+            `;
+            const loadingOverlay = document.getElementById('loading-overlay');
+            if (loadingOverlay.style.display !== 'none') {
+                loadingOverlay.innerHTML = errorMessage;
+            } else {
+                document.getElementById('app').innerHTML = errorMessage;
+            }
+        }
+
+        // --- On-Demand Loading ---
+        function showAppLoading(message = 'Loading...') {
+            const app = document.getElementById('app');
+            app.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-64">
+                    <i class="fas fa-seedling text-4xl text-[#a3b899] mb-4 animate-bounce"></i>
+                    <p class="text-[#6c8a7c] font-bold text-xl tracking-wide">${message}</p>
+                </div>
+            `;
+            // Scroll to top
+            window.scrollTo(0, 0);
+        }
+
+        // --- Voice Logic 語音控制 ---
+        function initVoices() {
+            window.speechSynthesis.onvoiceschanged = () => {
+                availableVoices = window.speechSynthesis.getVoices();
+            };
+            availableVoices = window.speechSynthesis.getVoices();
+        }
+
+        function getBestVoice(lang) {
+            if (!availableVoices.length) availableVoices = window.speechSynthesis.getVoices();
+            const langVoices = availableVoices.filter(v => v.lang.replace('_', '-').includes(lang));
+            if (langVoices.length === 0) return null;
+            const enhancedVoice = langVoices.find(v => 
+                v.name.includes('Google') || 
+                v.name.includes('Microsoft') || 
+                v.name.includes('Premium') ||
+                v.name.includes('Enhanced')
+            );
+            return enhancedVoice || langVoices[0];
+        }
+
+        function speakDual(enText, zhText, elementId, onComplete) {
+            if (!('speechSynthesis' in window)) {
+                alert("Speech synthesis is not supported in this browser.");
+                return;
+            }
+            window.speechSynthesis.cancel();
+            highlightCard(elementId);
+
+            const enUtterance = new SpeechSynthesisUtterance(enText);
+            enUtterance.lang = 'en-US';
+            enUtterance.rate = 0.85; // 稍微放慢語速，適合兒童
+            const bestEnVoice = getBestVoice('en');
+            if (bestEnVoice) enUtterance.voice = bestEnVoice;
+
+            const zhUtterance = new SpeechSynthesisUtterance(zhText);
+            zhUtterance.lang = 'zh-TW';
+            zhUtterance.rate = 1.0;
+            const bestZhVoice = getBestVoice('zh');
+            if (bestZhVoice) zhUtterance.voice = bestZhVoice;
+
+            enUtterance.onend = () => {
+                if (isPlayingSequence || !onComplete) {
+                     window.speechSynthesis.speak(zhUtterance);
+                }
+            };
+            enUtterance.onerror = () => window.speechSynthesis.speak(zhUtterance);
+            zhUtterance.onend = () => {
+                removeHighlight(elementId);
+                if (onComplete) onComplete();
+            };
+            window.speechSynthesis.speak(enUtterance);
+        }
+
+        // 循序朗讀 (全部播放功能)
+        function playAllSequence(items, startIndex, idPrefix) {
+            if (startIndex >= items.length) {
+                stopAllPlayback();
+                return;
+            }
+            isPlayingSequence = true;
+            document.getElementById('stopFloatingBtn').classList.remove('hidden');
+
+            const item = items[startIndex];
+            // 如果是標題分隔線 (沒有 en 或 word)，則跳過不朗讀
+            if (!item.en && !item.word && typeof item !== 'string') {
+                playAllSequence(items, startIndex + 1, idPrefix);
+                return;
+            }
+
+            const elementId = `${idPrefix}-${startIndex}`;
+            const el = document.getElementById(elementId);
+            if(el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+            let enText = item.en || item.word;
+            if (!enText && typeof item === 'string') enText = item; 
+
+            if (item.def) enText += `. ${item.def}`;
+            if (item.example) enText += `. Example: ${item.example}`; 
+
+            let zhText = item.zh || '';
+            if (item.zhDef) zhText += `。${item.zhDef}`;
+            if (item.zhExample) zhText += `。例句：${item.zhExample}`;
+
+            speakDual(enText, zhText, elementId, () => {
+                if (isPlayingSequence) {
+                    setTimeout(() => {
+                        if (isPlayingSequence) playAllSequence(items, startIndex + 1, idPrefix);
+                    }, 800);
+                }
+            });
+        }
+
+        function stopAllPlayback() {
+            isPlayingSequence = false;
+            window.speechSynthesis.cancel();
+            document.getElementById('stopFloatingBtn').classList.add('hidden');
+            document.querySelectorAll('.playing').forEach(el => el.classList.remove('playing'));
+        }
+
+        function highlightCard(elementId) {
+            document.querySelectorAll('.playing').forEach(el => el.classList.remove('playing'));
+            if (elementId) {
+                const el = document.getElementById(elementId);
+                if (el) el.classList.add('playing');
+            }
+        }
+
+        function removeHighlight(elementId) {
+            if (elementId) {
+                const el = document.getElementById(elementId);
+                if (el) el.classList.remove('playing');
+            }
+        }
+
+        // --- Navigation 導覽控制 ---
+        function updateNav(showBack) {
+            const navBtn = document.getElementById('navBtn');
+            if (showBack) navBtn.classList.remove('hidden');
+            else navBtn.classList.add('hidden');
+        }
+
+        function goHome() {
+            stopAllPlayback();
+            currentView = 'home';
+            currentGrade = null;
+            currentUnitGroup = null;
+            renderHome();
+            updateNav(false);
+        }
+
+        function goBack() {
+            stopAllPlayback();
+            // 處理回到上一頁的邏輯
+            if (currentView === 'unit_menu') {
+                goHome(); 
+            } else if (['highlights', 'fulltext', 'all_words'].includes(currentView)) {
+                if (currentExam) {
+                    renderExamDashboard(currentExam); // 如果在考試模式中，回考試儀表板
+                } else {
+                    renderUnitMenu(currentUnit); // 否則回到單元選單
+                }
+            } else if (currentView === 'grade_menu') {
+                goHome();
+            } else if (currentView === 'exam_dashboard') {
+                renderExamList();
+            } else if (currentView === 'exam_list') {
+                goHome();
+            } else if (['exam_quiz', 'quiz_result'].includes(currentView)) {
+                renderExamDashboard(currentExam);
+            }
+        }
+
+        // --- Navigation & Data Loading ---
+        function toggleQuickNav() {
+            const modal = document.getElementById('quick-nav-modal');
+            modal.classList.toggle('hidden');
+        }
+
+        async function jumpToUnit(gradeDbKey, id) {
+            toggleQuickNav();
+            showAppLoading('Loading Unit...');
+            try {
+                const unit = await loadUnitData(gradeDbKey, id);
+                renderUnitMenu(unit);
+            } catch (error) {
+                onDataError(error);
+            }
+        }
+
+        function toggleGradeAccordion(btn) {
+            const content = btn.nextElementSibling;
+            const icon = btn.querySelector('i');
+            content.classList.toggle('hidden');
+            if (content.classList.contains('hidden')) {
+                icon.className = 'fas fa-chevron-right text-xs text-[#7d9e8d]';
+            } else {
+                icon.className = 'fas fa-chevron-down text-xs text-[#7d9e8d]';
+            }
+        }
+
+        // --- Data Retrieval (快取機制與 GAS 串接) ---
+        async function loadUnitData(gradeDbKey, id) {
+            const gradeData = db[gradeDbKey] || [];
+            const unitIndex = gradeData.findIndex(u => u.id === id);
+            if (unitIndex === -1) throw new Error(`Unit not found (${id})`);
+
+            const unit = db[gradeDbKey][unitIndex];
+
+            // 檢查是否已在快取中擁有完整資料 (這裡以 content 判斷，可視需求調整)
+            if (typeof google !== 'undefined' && google.script && unit.content === undefined) {
+                 return new Promise((resolve) => {
+                google.script.run
+                    .withSuccessHandler(fullUnitData => {
+                        // Cache the full data by replacing the lightweight object
+                        db[gradeDbKey][unitIndex] = fullUnitData;
+                        resolve(fullUnitData);
+                    })
+                        .withFailureHandler(error => {
+                            console.warn("GAS fetch failed for unit, using existing local data.", error);
+                            // 若後端讀取失敗，不要報錯，直接回傳目前本地擁有的資料
+                            resolve(unit);
+                        })
+                        .getUnitData(id);
+            });
+            }
+            return unit;
+        }
+
+        // --- Renderers 渲染器 ---
+
+        function renderQuickNav() {
+            const list = document.getElementById('quick-nav-list');
+            if (!list) return;
+            
+            let html = '';
+            const grades = { 'Grade 1': db.grade1 || [], 'Grade 2': db.grade2 || [] };
+            
+            Object.keys(grades).forEach(gradeLabel => {
+                const lessons = grades[gradeLabel];
+                if (lessons.length === 0) return;
+
+                // Group by Unit
+                const units = {};
+                lessons.forEach(l => {
+                    if (!units[l.unit]) units[l.unit] = [];
+                    units[l.unit].push(l);
+                });
+
+                // 預設將 Grade 1 收合 (collapsed)
+                const isCollapsed = gradeLabel === 'Grade 1';
+                const contentClass = isCollapsed ? 'hidden' : '';
+                const iconClass = isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down';
+
+                // 調整為小字級: text-sm, text-xs
+                html += `<div class="mb-4 bg-[#f4f7f6] p-3 rounded-xl border border-[#e2e8e4]">
+                    <button onclick="toggleGradeAccordion(this)" class="w-full flex justify-between items-center font-bold text-[#3e504c] pb-1 text-sm focus:outline-none hover:text-[#6c8a7c] transition">
+                        <span>${gradeLabel}</span>
+                        <i class="fas ${iconClass} text-xs text-[#7d9e8d]"></i>
+                    </button>
+                    <div class="${contentClass} transition-all mt-2">`;
+                
+                Object.keys(units).sort((a,b) => parseInt(a)-parseInt(b)).forEach(unitNum => {
+                    const unitLessons = units[unitNum];
+                    unitLessons.sort((a,b) => a.week - b.week);
+                    
+                    html += `<div class="mb-2 bg-white p-2 rounded-lg shadow-sm border border-[#e2e8e4]/50">
+                        <div class="text-xs font-bold text-[#8a7f96] uppercase tracking-wider mb-1 pl-1 border-b border-[#f4f7f6] pb-1">Unit ${unitNum}</div>
+                        <div class="space-y-1">`;
+                    
+                    unitLessons.forEach(l => {
+                        const gradeDbKey = gradeLabel === 'Grade 1' ? 'grade1' : 'grade2';
+                        html += `
+                            <button onclick="jumpToUnit('${gradeDbKey}', '${l.id}')" class="block w-full text-left text-sm font-medium text-[#6c8a7c] hover:bg-[#f0f4cd] hover:text-[#3e504c] px-2 py-1.5 rounded transition truncate flex items-center">
+                                <span class="font-mono text-xs font-bold bg-[#e2e8e4] text-[#6c8a7c] px-1 rounded mr-2">W${l.week}</span>
+                                <span class="truncate">${l.title}</span>
+                            </button>
+                        `;
+                    });
+                    
+                    html += `</div></div>`;
+                });
+                html += `</div></div>`;
+            });
+            
+            list.innerHTML = html;
+        }
+
+        // 首頁：列出所有單元 (Grade X, Unit Y)
+        function renderHome() {
+            currentView = 'home';
+            const app = document.getElementById('app');
+            currentExam = null; // 清除考試狀態
+            
+            // Check if db is empty (error handling or empty state)
+            if (!db.grade1.length && !db.grade2.length) {
+                app.innerHTML = `<div class="text-center text-[#8a7f96] mt-10 font-bold text-xl"><i class="fas fa-wind text-4xl mb-3 block opacity-50"></i> No Data Available</div>`;
+                return;
+            }
+
+            // 整理資料：找出所有存在的 Grade 和 Unit
+            // 結構: groups['Grade 1']['Unit 5'] = [lessons...]
+            const groups = {};
+
+            const processLessons = (lessons, gradeLabel) => {
+                lessons.forEach(lesson => {
+                    const unitKey = `Unit ${lesson.unit}`;
+                    if (!groups[gradeLabel]) groups[gradeLabel] = {};
+                    if (!groups[gradeLabel][unitKey]) groups[gradeLabel][unitKey] = [];
+                    groups[gradeLabel][unitKey].push(lesson);
+                });
+            };
+
+            processLessons(db.grade1, 'Grade 1');
+            processLessons(db.grade2, 'Grade 2');
+
+            let html = `
+                <div class="mb-8 text-center animate-fade-in mt-4">
+                    <h2 class="text-3xl font-bold text-[#3e504c] tracking-wide">Select Learning Area</h2>
+                    <p class="text-[#8ba79b] font-bold mt-2 text-lg">Choose a unit to begin</p>
+                </div>
+                <div class="space-y-6 px-1">
+            `;
+
+            // 產生按鈕
+            Object.keys(groups).sort().forEach(gradeKey => {
+                const units = groups[gradeKey];
+                const sortedUnits = Object.keys(units).sort((a, b) => parseInt(a.replace('Unit ', '')) - parseInt(b.replace('Unit ', '')));
+
+                sortedUnits.forEach(unitKey => {
+                    const unitNum = parseInt(unitKey.replace('Unit ', ''));
+                    // 根據 Unit 號碼決定 CSS Class (1~5, 超過5用 default)
+                    const colorClass = (gradeKey !== 'Grade 1' && unitNum >= 1 && unitNum <= 5) ? `home-unit-${unitNum}` : 'home-unit-default';
+                    const lessonCount = units[unitKey].length;
+
+                    html += `
+                        <button onclick="renderGradeMenu('${gradeKey}', '${unitKey}')" class="${colorClass} w-full text-white rounded-[1.5rem] p-6 shadow-md transform transition hover:-translate-y-1 flex items-center justify-between group border border-white/20">
+                        <div class="text-left">
+                                <h3 class="text-3xl font-bold mb-2 tracking-wide">${gradeKey}, ${unitKey}</h3>
+                                <p class="text-white/90 text-sm font-bold bg-black/10 inline-block px-3 py-1.5 rounded-lg backdrop-blur-sm">${lessonCount} Lessons Available</p>
+                        </div>
+                            <div class="bg-white/20 p-4 rounded-2xl backdrop-blur-sm group-hover:bg-white/30 transition">
+                                <i class="fas fa-layer-group text-3xl"></i>
+                </div>
+                        </button>
+            `;
+                });
+            });
+
+            // 綜合評量測驗區塊
+            html += `
+                <div class="mt-10 border-t-2 border-[#e2e8e4] pt-8">
+                    <button onclick="renderExamList()" class="w-full bg-gradient-to-r from-[#bfa860] to-[#d9cd90] text-white rounded-[1.5rem] p-6 shadow-md transform transition hover:-translate-y-1 flex items-center justify-between group border border-white/20">
+                        <div class="text-left">
+                            <h3 class="text-3xl font-bold mb-2 tracking-wide">Exam Review</h3>
+                            <p class="text-white/90 text-sm font-bold bg-black/10 inline-block px-3 py-1.5 rounded-lg backdrop-blur-sm">Vocabulary Test</p>
+                        </div>
+                        <div class="bg-white/20 p-4 rounded-2xl backdrop-blur-sm group-hover:bg-white/30 transition">
+                            <i class="fas fa-feather-alt text-3xl"></i>
+                        </div>
+                    </button>
+                </div>
+            </div>`;
+            app.innerHTML = html;
+            updateNav(false);
+        }
+
+        // 顯示該 Grade 該 Unit 下的所有課程 (Week 1, Week 2...)
+        function renderGradeMenu(gradeKey, unitKey) {
+            currentView = 'grade_menu';
+            const app = document.getElementById('app');
+            
+            // 從 db 中篩選出符合的課程
+            const gradeData = (gradeKey === 'Grade 1') ? db.grade1 : db.grade2;
+            const targetUnit = parseInt(unitKey.replace('Unit ', ''));
+            const lessons = gradeData.filter(l => l.unit === targetUnit);
+
+            // 取得 Unit 主題色 (從 bgClass 抓取該單元第一課的顏色做代表，或是用預設)
+            // 這裡我們直接用 bgClass 動態產生邊框顏色
+            
+            let html = `
+                <div class="mb-8 text-center animate-fade-in mt-4">
+                    <h2 class="text-3xl font-bold text-[#3e504c]">${gradeKey}, ${unitKey}</h2>
+                    <p class="text-[#8ba79b] font-bold mt-2 text-lg">Select Lesson</p>
+                </div>
+                <div class="grid grid-cols-1 gap-5 px-1">
+            `;
+
+            lessons.forEach(lesson => {
+                // 直接抓取 JSON 中的 colorClass (例如 "blue-500")，如果沒有則預設 gray-400
+                const themeColor = lesson.colorClass || 'gray-400'; 
+                const iconClass = lesson.icon ? (lesson.icon.startsWith('fa-') ? `fas ${lesson.icon}` : `fas fa-${lesson.icon}`) : 'fas fa-book-open';
+                
+                // Sage style color mapping
+                const colorCode = tailwindColorMap(themeColor);
+                    
+                    html += `
+                    <div onclick='renderUnitMenuFromId("${gradeKey === 'Grade 1' ? 'grade1' : 'grade2'}", "${lesson.id}")' class="bg-white rounded-2xl p-5 card-shadow cursor-pointer relative overflow-hidden group border-l-[6px]" style="border-left-color: ${colorCode}">
+                        <div class="flex items-center justify-between relative z-10">
+                            <div class="pr-4">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="text-sm font-bold px-3 py-1 rounded-md shadow-sm text-white" style="background-color: ${colorCode}">Week ${lesson.week}</span>
+                                    <span class="text-sm font-bold text-[#8a7f96] bg-[#f4f7f6] px-3 py-1 rounded-md">${lesson.type.split(' ')[0]}</span>
+                                </div>
+                                <h3 class="font-extrabold text-2xl text-[#3e504c] group-hover:opacity-80 transition-opacity leading-snug">${lesson.title}</h3>
+                                <p class="text-[#6c8a7c] text-base mt-1 font-medium">${lesson.subtitle}</p>
+                            </div>
+                            <div class="text-white w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm opacity-80 group-hover:opacity-100 transition-opacity" style="background-color: ${colorCode}">
+                                <i class="${iconClass} text-2xl"></i>
+                            </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+            html += `</div>`;
+            app.innerHTML = html;
+            updateNav(true);
+        }
+
+        async function renderUnitMenuFromId(gradeDbKey, id) {
+            showAppLoading('Loading Content...');
+            try {
+                const unit = await loadUnitData(gradeDbKey, id);
+                renderUnitMenu(unit);
+            } catch (error) {
+                console.error("Failed to load unit:", error);
+                onDataError(error);
+            }
+        }
+
+        // 單元主選單：將 Spelling 與 Vocabulary 整合在 Words Practice 裡
+        function renderUnitMenu(unit) {
+            currentUnit = unit;
+            currentView = 'unit_menu';
+            const app = document.getElementById('app');
+            updateNav(true);
+
+            const hasContent = (unit.highlights && unit.highlights.length > 0) || (unit.qa && unit.qa.length > 0);
+            //const hasVocab = unit.vocab && unit.vocab.length > 0;
+            
+            const hasWords = (unit.spelling && unit.spelling.length > 0) || (unit.HFW && unit.HFW.length > 0) || (unit.vocab && unit.vocab.length > 0);
+            //const hasAnyWords = hasVocab || hasWords; // 只要有任何單字資料就顯示 Words Practice
+            const hasFullText = unit.content && unit.content.length > 0;
+            
+            const themeColor = unit.colorClass || 'gray-400';
+            const colorCode = tailwindColorMap(themeColor);
+            const iconClass = unit.icon ? (unit.icon.startsWith('fa-') ? `fas ${unit.icon}` : `fas fa-${unit.icon}`) : 'fas fa-book-open';
+
+            app.innerHTML = `
+                <div class="animate-fade-in px-1">
+                    <div class="rounded-3xl p-6 shadow-md mb-8 text-white flex justify-between items-center" style="background-color: ${colorCode}">
+                        <div>
+                            <h2 class="text-2xl font-bold tracking-wide">${unit.title}</h2>
+                            <p class="text-white/90 text-lg font-medium mt-1">${unit.subtitle}</p>
+                            <p class="text-xs font-bold bg-black/10 inline-block px-3 py-1 rounded-lg mt-3">${unit.type}</p>
+                        </div>
+                        <i class="${iconClass} text-5xl opacity-40"></i>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4">
+                        
+                        ${hasContent ? `
+                        <button onclick="renderHighlights()" class="bg-white rounded-2xl p-5 card-shadow flex items-center justify-between hover:bg-[#f4f7f6] transition border border-[#e2e8e4]">
+                            <div class="flex items-center gap-5">
+                                <div class="text-[#7d9e8d] w-12 flex justify-center"><i class="fas fa-highlighter text-3xl"></i></div>
+                                <div class="text-left border-l-2 border-[#e2e8e4] pl-5">
+                                    <h3 class="font-bold text-xl text-[#3e504c]">Highlights</h3>
+                                    <p class="text-[#8ba79b] text-sm font-medium mt-1">Highlights & Q&A</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-angle-right text-[#d4b5b0] text-xl"></i>
+                        </button>
+                        ` : ''}
+
+                        ${hasWords ? `
+                        <button onclick="renderAllWords()" class="bg-white rounded-2xl p-5 card-shadow flex items-center justify-between hover:bg-[#f4f7f6] transition border border-[#e2e8e4]">
+                            <div class="flex items-center gap-5">
+                                <div class="text-[#7d9e8d] w-12 flex justify-center"><i class="fas fa-spell-check text-3xl"></i></div>
+                                <div class="text-left border-l-2 border-[#e2e8e4] pl-5">
+                                    <h3 class="font-bold text-xl text-[#3e504c]">Words Practice</h3>
+                                    <p class="text-[#8ba79b] text-sm font-medium mt-1">Spelling, HFW & Vocabulary</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-angle-right text-[#d4b5b0] text-xl"></i>
+                        </button>
+                        ` : ''}
+
+                        ${hasFullText ? `
+                        <button onclick="renderFullText()" class="bg-white rounded-2xl p-5 card-shadow flex items-center justify-between hover:bg-[#f4f7f6] transition border border-[#e2e8e4]">
+                            <div class="flex items-center gap-5">
+                                <div class="text-[#7d9e8d] w-12 flex justify-center"><i class="fas fa-file-alt text-3xl"></i></div>
+                                <div class="text-left border-l-2 border-[#e2e8e4] pl-5">
+                                    <h3 class="font-bold text-xl text-[#3e504c]">Full Text</h3>
+                                    <p class="text-[#8ba79b] text-sm font-medium mt-1">Read Aloud</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-angle-right text-[#d4b5b0] text-xl"></i>
+                        </button>
+                        ` : ''}
+
+                        ${unit.video ? `
+                        <a href="${unit.video}" target="_blank" class="bg-white rounded-2xl p-5 card-shadow flex items-center justify-between hover:bg-[#fcfdfa] transition border border-[#e2e8e4]">
+                            <div class="flex items-center gap-5">
+                                <div class="text-[#b8958f] w-12 flex justify-center"><i class="fab fa-youtube text-4xl"></i></div>
+                                <div class="text-left border-l-2 border-[#e2e8e4] pl-5">
+                                    <h3 class="font-bold text-xl text-[#3e504c]">Video Review</h3>
+                                    <p class="text-[#8ba79b] text-sm font-medium mt-1">YouTube</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-external-link-alt text-[#d4b5b0] text-lg"></i>
+                        </a>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- View Renderers ---
+
+        function renderHighlights() {
+            currentView = 'highlights';
+            let combinedList = [];
+            if (currentUnit.highlights && currentUnit.highlights.length > 0) {
+                combinedList = combinedList.concat(currentUnit.highlights);
+            }
+            if (currentUnit.qa && currentUnit.qa.length > 0) {
+                if (combinedList.length > 0) combinedList.push({ title: "Q&A" });
+                combinedList = combinedList.concat(currentUnit.qa);
+            }
+            renderTextList('Highlights', combinedList, 'highlight', 'bg-[#8ba79b] hover:bg-[#6c8a7c]', 'border-[#a3b899]', 'text-[#6c8a7c]');
+        }
+
+        function renderFullText() {
+            currentView = 'fulltext';
+            renderTextList('Full Text', currentUnit.content, 'fulltext', 'bg-[#8ba79b] hover:bg-[#6c8a7c]', 'border-[#a3b899]', 'text-[#6c8a7c]');
+        }
+
+        // 共用的列表渲染函數 (用於 Highlights 和 Full Text)
+        function renderTextList(viewTitle, dataList, idPrefix, btnColorClass, borderClass, titleColorClass) {
+            const unit = currentUnit;
+            const app = document.getElementById('app');
+            
+            let html = `
+                <div class="mb-6 sticky top-16 bg-[#f4f7f6]/90 py-3 z-10 -mx-4 px-5 backdrop-blur-sm border-b-2 border-[#e2e8e4]">
+                    <div class="text-xs font-bold text-[#8ba79b] mb-1">${unit.title}</div>
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-2xl font-bold text-[#3e504c]">${viewTitle}</h2>
+                        <button id="play-all-btn" class="${btnColorClass} text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow-md flex items-center">
+                            <i class="fas fa-play text-xs mr-2"></i> Play All
+                        </button>
+                    </div>
+                </div>
+                <div class="space-y-5 pb-24 px-1">
+            `;
+
+            if (dataList && dataList.length > 0) {
+                dataList.forEach((item, index) => {
+                    const cardId = `${idPrefix}-${index}`;
+                    
+                    // 若只有 title 沒英文 (作為大標題分隔)
+                    if (item.title && !item.en) {
+                        html += `<h3 class="text-lg font-bold ${titleColorClass} mt-8 mb-3 ml-2 opacity-80 uppercase tracking-wide border-b-2 border-[#e2e8e4] pb-2">${item.title}</h3>`;
+                        return;
+                    }
+
+                    // 處理小標籤 (例如 Full Text 的段落數字，或是 Highlights 的小標題)
+                    const label = item.title ? `<span class="inline-block text-xs font-bold text-[#8ba79b] bg-[#eaf0ed] px-3 py-1 rounded-lg mb-3">${item.title}</span>` : '';
+
+                    html += `
+                        <div id="${cardId}" class="bg-white p-6 rounded-2xl card-shadow border-l-[5px] border-transparent hover:${borderClass} transition-colors">
+                            ${label}
+                            <div class="flex gap-4 items-start">
+                                <div class="flex-grow">
+                                    <p class="text-xl font-bold text-[#3e504c] mb-3 leading-snug">${item.en}</p>
+                                    <p class="text-[#6c8a7c] text-lg font-medium">${item.zh}</p>
+                                </div>
+                                <button onclick="stopAllPlayback(); speakDual(\`${escapeForHtml(item.en)}\`, \`${escapeForHtml(item.zh)}\`, '${cardId}')" class="flex-shrink-0 w-12 h-12 mt-1 bg-[#f4f7f6] ${titleColorClass} rounded-full flex items-center justify-center hover:${btnColorClass} hover:text-white transition shadow-sm">
+                                    <i class="fas fa-volume-up text-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                html += `<div class="text-center text-[#8a7f96] py-12 text-lg font-bold">No Content</div>`;
+            }
+            html += `</div>`;
+            app.innerHTML = html;
+
+            const playAllBtn = document.getElementById('play-all-btn');
+            if (playAllBtn) {
+                playAllBtn.addEventListener('click', () => playAllSequence(dataList, 0, idPrefix));
+            }
+            updateNav(true);
+        }
+
+        // 整合單字卡區塊：按順序 1. Spelling 2. HFW 3. Vocabulary
+        function renderAllWords() {
+            currentView = 'all_words'; // 設定正確的 view 狀態，讓 goBack 可以辨識
+            const app = document.getElementById('app');
+            let fullHtml = '';
+
+            // 1. Spelling Words
+            if (currentUnit.spelling && currentUnit.spelling.length > 0) {
+                fullHtml += generateWordSectionHtml('Spelling Words', currentUnit.spelling, 'spelling', 'sage-clay');
+            }
+
+            // 2. High Frequency Words (HFW)
+            if (currentUnit.HFW && currentUnit.HFW.length > 0) {
+                if (fullHtml) fullHtml += '<div class="h-10"></div>';
+                fullHtml += generateWordSectionHtml('High Frequency Words', currentUnit.HFW, 'hfw', 'sage-blue');
+            }
+
+            // 3. Vocabulary
+            if (currentUnit.vocab && currentUnit.vocab.length > 0) {
+                if (fullHtml) fullHtml += '<div class="h-10"></div>';
+                fullHtml += generateWordSectionHtml('Vocabulary', currentUnit.vocab, 'vocab', 'sage-green');
+            }
+            
+            app.innerHTML = `<div class="pb-24">${fullHtml}</div>`;
+            updateNav(true);
+        }
+
+        // 輔助函式：根據 ranges 取得所有單元
+        async function getUnitsFromRanges(ranges) {
+            showAppLoading('Loading Content...');
+            const unitPromises = ranges.map(id => {
+                const gradeKey = id.startsWith('1_') ? 'grade1' : 'grade2';
+                return loadUnitData(gradeKey, id).catch(() => null);
+            });
+            const units = await Promise.all(unitPromises);
+            return units.filter(u => u !== null);
+        }
+
+        // 考試複習專用的整合單字卡區塊
+        async function enterExamAllWords() {
+            showAppLoading('Compiling Words...');
+            const units = await getUnitsFromRanges(currentExam.ranges);
+            let aggregatedVocab = [];
+            let aggregatedSpelling = [];
+            let aggregatedHFW = [];
+
+            // 把各單元的資料加入並標上所屬的 Unit Title 作為子標題分隔
+            units.forEach(u => {
+                if (u.spelling && u.spelling.length > 0) {
+                    aggregatedSpelling.push({ title: `📖 ${u.title}` });
+                    aggregatedSpelling = aggregatedSpelling.concat(u.spelling);
+                }
+                if (u.HFW && u.HFW.length > 0) {
+                    aggregatedHFW.push({ title: `📖 ${u.title}` });
+                    aggregatedHFW = aggregatedHFW.concat(u.HFW);
+                }
+                if (u.vocab && u.vocab.length > 0) {
+                    aggregatedVocab.push({ title: `📖 ${u.title}` });
+                    aggregatedVocab = aggregatedVocab.concat(u.vocab);
+                }
+            });
+
+            currentUnit = { 
+                title: "Words Flashcards", 
+                spelling: aggregatedSpelling,
+                HFW: aggregatedHFW,
+                vocab: aggregatedVocab
+            };
+            renderAllWords();
+        }
+
+        function renderExamList() {
+            currentView = 'exam_list';
+            const app = document.getElementById('app');
+            
+            let html = `
+                <div class="mb-8 text-center animate-fade-in mt-4">
+                    <h2 class="text-3xl font-bold text-[#bfa860]">Exam Review</h2>
+                    <p class="text-[#8ba79b] font-bold mt-2 text-lg">Select Review Scope</p>
+                </div>
+                <div class="space-y-5 px-1">
+            `;
+
+            // 改用 db.exams
+            (db.exams || []).forEach((exam, index) => {
+                // 將 Range ID 轉換為 Title 顯示
+                const rangeListHtml = exam.ranges.map(id => {
+                    let displayText = id;
+                    const gradeKey = id.startsWith('1_') ? 'grade1' : 'grade2';
+                        if (db[gradeKey]) {
+                            const found = db[gradeKey].find(u => u.id === id);
+                            if (found) displayText = found.title;
+                        }
+                    return `<div class="truncate text-[#6c8a7c] bg-[#f4f7f6] inline-block px-3 py-1.5 rounded-lg text-sm font-bold mr-2 mb-2 border border-[#e2e8e4]">${displayText}</div>`;
+                }).join('');
+
+                html += `
+                    <button onclick="renderExamDashboard(db.exams[${index}])" class="w-full bg-white border-l-[6px] border-[#bfa860] rounded-3xl p-6 card-shadow hover:bg-[#fcfdfa] transition text-left flex justify-between items-center group">
+                        <div class="relative z-10 w-full pr-4">
+                            <h3 class="text-2xl font-bold text-[#3e504c] mb-3">${exam.title}</h3>
+                            <div class="flex flex-wrap">${rangeListHtml}</div>
+                        </div>
+                        <div class="text-[#bfa860] text-2xl flex-shrink-0 group-hover:translate-x-1 transition-transform">
+                            <i class="fas fa-chevron-right"></i>
+                        </div>
+                    </button>
+                `;
+            });
+
+            html += `</div>`;
+            app.innerHTML = html;
+            updateNav(true);
+        }
+
+        function renderExamDashboard(exam) {
+            currentView = 'exam_dashboard';
+            currentExam = exam;
+            const app = document.getElementById('app');
+
+            app.innerHTML = `
+                <div class="animate-fade-in px-1">
+                    <div class="rounded-[1.5rem] p-6 shadow-sm mb-8 text-white bg-gradient-to-r from-[#a3b899] to-[#7d9e8d] flex justify-between items-center">
+                        <div>
+                            <h2 class="text-xl font-bold tracking-wide">${exam.title}</h2>
+                            <p class="text-white/80 text-sm font-bold mt-2 bg-black/10 inline-block px-3 py-1 rounded-lg">Scope: ${exam.ranges.length} Lessons</p>
+                        </div>
+                        <i class="fas fa-clipboard-check text-4xl opacity-50"></i>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-5">
+
+                        <button onclick="enterExamAllWords()" class="bg-white rounded-2xl p-5 card-shadow flex items-center justify-between hover:bg-[#f4f7f6] transition border border-[#e2e8e4]">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-[#eaf0ed] text-[#6c8a7c] w-14 h-14 rounded-xl flex items-center justify-center"><i class="fas fa-spell-check text-2xl"></i></div>
+                                <div class="text-left">
+                                    <h3 class="font-bold text-xl text-[#3e504c]">Words Flashcards</h3>
+                                    <p class="text-[#8ba79b] font-medium text-sm mt-1">Spelling, HFW & Vocab</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-angle-right text-[#d4b5b0] text-xl"></i>
+                        </button>
+
+                        <button onclick="enterExamQuiz()" class="bg-white rounded-2xl p-5 card-shadow flex items-center justify-between hover:bg-[#f4f7f6] transition border border-[#e2e8e4]">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-[#f0f4cd] text-[#bfa860] w-14 h-14 rounded-xl flex items-center justify-center"><i class="fas fa-check-square text-2xl"></i></div>
+                                <div class="text-left">
+                                    <h3 class="font-bold text-xl text-[#3e504c]">Meaning Quiz</h3>
+                                    <p class="text-[#8ba79b] font-medium text-sm mt-1">Short Quiz</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-angle-right text-[#d4b5b0] text-xl"></i>
+                        </button>
+
+                        <button onclick="enterSpellingQuiz()" class="bg-white rounded-2xl p-5 card-shadow flex items-center justify-between hover:bg-[#f4f7f6] transition border border-[#e2e8e4]">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-[#f0e8eb] text-[#b8958f] w-14 h-14 rounded-xl flex items-center justify-center"><i class="fas fa-keyboard text-2xl"></i></div>
+                                <div class="text-left">
+                                    <h3 class="font-bold text-xl text-[#3e504c]">Spelling Test</h3>
+                                    <p class="text-[#8ba79b] font-medium text-sm mt-1">Listen & Spell</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-angle-right text-[#d4b5b0] text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            updateNav(true);
+        }
+
+        // 共用單字與例句渲染 (依據不同類別改變色彩)
+        function generateWordSectionHtml(title, rawList, idPrefix, colorName) {
+            // Sage Style mappings for sub-sections
+            let btnBg = 'bg-[#8ba79b]', btnHover = 'hover:bg-[#6c8a7c]', borderHover = 'hover:border-[#a3b899]', iconColor = 'text-[#6c8a7c]', exBorder = 'border-[#a3b899]', exColor = 'text-[#a3b899]';
+            if (colorName === 'sage-clay') {
+                btnBg = 'bg-[#d4b5b0]'; btnHover = 'hover:bg-[#b8958f]'; borderHover = 'hover:border-[#d4b5b0]'; iconColor = 'text-[#b8958f]'; exBorder = 'border-[#d4b5b0]'; exColor = 'text-[#b8958f]';
+            } else if (colorName === 'sage-blue') {
+                btnBg = 'bg-[#8fa8c8]'; btnHover = 'hover:bg-[#6f8eb3]'; borderHover = 'hover:border-[#8fa8c8]'; iconColor = 'text-[#6f8eb3]'; exBorder = 'border-[#8fa8c8]'; exColor = 'text-[#8fa8c8]';
+            }
+
+            let html = `
+                <div class="mb-6 sticky top-16 bg-[#f4f7f6]/90 py-3 z-10 -mx-4 px-5 backdrop-blur-sm border-b-2 border-[#e2e8e4]">
+                    <div class="text-xs font-bold text-[#8ba79b] mb-1">${currentUnit.title}</div>
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-2xl font-bold text-[#3e504c]">${title}</h2>
+                        <button onclick="playAllSequence(currentUnit['${idPrefix}'], 0, '${idPrefix}')" class="${btnBg} ${btnHover} text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition flex items-center">
+                            <i class="fas fa-play text-xs mr-2"></i> Play All
+                        </button>
+                    </div>
+                </div>
+                <div class="space-y-5 px-1">
+            `;
+
+            rawList.forEach((item, index) => {
+                // 如果遇到純標題項目 (例如考前複習中的單元名稱分隔)
+                if (item.title && !item.word) {
+                    html += `<h3 class="text-lg font-bold text-[#6c8a7c] mt-8 mb-3 ml-2 opacity-80 uppercase tracking-wide border-b-2 border-[#e2e8e4] pb-2">${item.title}</h3>`;
+                    return;
+                }
+
+                const cardId = `${idPrefix}-${index}`;
+                
+                let enSpeak = `${item.word}. ${item.def || ''}`;
+                if (item.example) enSpeak += ` Example: ${item.example}`;
+                let zhSpeak = `${item.zh}. ${item.zhDef || ''}`;
+                if (item.zhExample) zhSpeak += ` 例句：${item.zhExample}`;
+                
+                html += `
+                    <div id="${cardId}" class="bg-white p-6 rounded-2xl card-shadow border-l-[5px] border-transparent ${borderHover} transition-colors">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="pr-3">
+                                <div class="flex items-end gap-3 mb-2">
+                                    <h3 class="text-3xl font-extrabold text-[#3e504c] tracking-wide">${item.word}</h3>
+                                    <span class="text-[#8ba79b] font-bold text-lg mb-0.5">${item.zh}</span>
+                                </div>
+                                <p class="text-[#3e504c] text-lg mb-1.5 font-semibold">${item.def || ''}</p>
+                                <p class="text-[#6c8a7c] text-base font-medium">${item.zhDef || ''}</p>
+                            </div>
+                            <button onclick="stopAllPlayback(); speakDual(\`${escapeForHtml(enSpeak)}\`, \`${escapeForHtml(zhSpeak)}\`, '${cardId}')" class="flex-shrink-0 w-12 h-12 bg-[#f4f7f6] ${iconColor} rounded-full flex items-center justify-center ${btnHover} hover:text-white transition shadow-sm mt-1">
+                                <i class="fas fa-volume-up text-lg"></i>
+                            </button>
+                        </div>
+                        
+                        ${item.example ? `
+                        <div class="mt-4 bg-[#fcfdfa] p-4 rounded-xl border-2 border-[#e2e8e4]/70">
+                            <p class="text-[#3e504c] mb-1 text-base font-bold"><span class="${exColor} text-xs border-2 ${exBorder} px-1.5 py-0.5 rounded mr-2 uppercase font-extrabold">Ex</span>${item.example}</p>
+                            <p class="text-[#8a7f96] text-sm pl-8 font-medium">${item.zhExample || ''}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            html += `</div>`;
+            return html;
+        }
+
+        // --- Quiz Logic ---
+
+        async function enterExamQuiz() {
+            showAppLoading('Preparing Quiz...');
+            const units = await getUnitsFromRanges(currentExam.ranges);
+            let allVocab = [];
+            units.forEach(u => { 
+                if (u.vocab) allVocab = allVocab.concat(u.vocab); 
+                if (u.spelling) allVocab = allVocab.concat(u.spelling);
+                if (u.HFW) allVocab = allVocab.concat(u.HFW);
+            });
+
+            // 簡單去重 (依據單字拼寫)
+            const uniqueVocab = [];
+            const seenWords = new Set();
+            allVocab.forEach(v => {
+                if (v.word && v.zh) {
+                const wordKey = v.word.toLowerCase().trim();
+                if (!seenWords.has(wordKey)) {
+                    seenWords.add(wordKey);
+                    uniqueVocab.push(v);
+                    }
+                }
+            });
+
+            if (uniqueVocab.length < 4) {
+                alert("Not enough vocabulary words (minimum 4 required).");
+                renderExamDashboard(currentExam);
+                return;
+            }
+
+            // 洗牌並取出最多 20 題
+            uniqueVocab.sort(() => Math.random() - 0.5);
+            const quizItems = uniqueVocab.slice(0, 20);
+
+            // 產生題目與選項
+            const questions = quizItems.map(target => {
+                // 隨機選 3 個干擾項
+                const distractors = uniqueVocab
+                    .filter(v => v.word !== target.word)
+                    .sort(() => Math.random() - 0.5)
+                    .slice(0, 3);
+                
+                // 混合選項並再次洗牌
+                const options = [target, ...distractors].sort(() => Math.random() - 0.5);
+                return { target, options };
+            });
+
+            quizState = {
+                questions,
+                currentIndex: 0,
+                score: 0,
+                type: 'multiple_choice'
+            };
+
+            renderQuizQuestion();
+        }
+
+        function renderQuizQuestion() {
+            currentView = 'exam_quiz';
+            const app = document.getElementById('app');
+            updateNav(true);
+
+            const q = quizState.questions[quizState.currentIndex];
+            const progress = `${quizState.currentIndex + 1} / ${quizState.questions.length}`;
+
+            let html = `
+                <div class="animate-fade-in max-w-xl mx-auto px-1">
+                    <div class="mb-5 flex justify-between items-center border-b-2 border-[#e2e8e4] pb-3">
+                        <span class="text-[#8ba79b] font-bold text-base">Question ${progress}</span>
+                        <span class="text-[#bfa860] font-bold text-base">Score: ${quizState.score}</span>
+                    </div>
+
+                    <div class="bg-white rounded-3xl shadow-sm p-10 text-center mb-8 border border-[#e2e8e4]">
+                        <p class="text-[#8a7f96] text-sm font-bold mb-3">Select the correct Chinese meaning:</p>
+                        <h2 class="text-4xl font-extrabold text-[#3e504c] mb-8 tracking-wide">${q.target.word}</h2>
+                        <button onclick="speakDual('${escapeForHtml(q.target.word)}', '', null)" class="text-[#6c8a7c] hover:bg-[#f4f7f6] border-2 border-[#e2e8e4] text-2xl transition w-16 h-16 rounded-full flex items-center justify-center mx-auto shadow-sm">
+                            <i class="fas fa-volume-up"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4">
+            `;
+
+            q.options.forEach((opt, idx) => {
+                const letters = ['A', 'B', 'C', 'D'];
+                html += `
+                    <button id="quiz-opt-${idx}" onclick="checkQuizAnswer(${idx})" class="bg-white border-2 border-[#e2e8e4] hover:border-[#8ba79b] hover:bg-[#fcfdfa] text-[#3e504c] rounded-2xl p-5 text-left transition flex items-center shadow-sm">
+                        <div class="text-[#8ba79b] font-bold w-8 text-lg">${letters[idx]}.</div>
+                        <span class="flex-grow text-xl font-bold">${opt.zh}</span>
+                    </button>
+                `;
+            });
+
+            html += `</div></div>`;
+            app.innerHTML = html;
+        }
+
+        function checkQuizAnswer(selectedIndex) {
+            const q = quizState.questions[quizState.currentIndex];
+            const isCorrect = q.options[selectedIndex].word === q.target.word;
+
+            // 鎖定所有按鈕並顯示正確答案
+            q.options.forEach((opt, idx) => {
+                const btn = document.getElementById(`quiz-opt-${idx}`);
+                btn.disabled = true;
+                btn.classList.remove('hover:border-[#8ba79b]', 'hover:bg-[#fcfdfa]'); 
+                
+                if (opt.word === q.target.word) {
+                    btn.classList.add('bg-[#f0f4cd]', 'border-[#bfa860]', 'text-[#3e504c]');
+                    btn.innerHTML += ` <i class="fas fa-check text-[#bfa860] text-2xl float-right ml-auto"></i>`;
+                } else if (idx === selectedIndex && !isCorrect) {
+                    btn.classList.add('bg-[#f0e8eb]', 'border-[#d4b5b0]', 'text-[#b8958f]');
+                    btn.innerHTML += ` <i class="fas fa-times text-[#d4b5b0] text-2xl float-right ml-auto"></i>`;
+                }
+            });
+
+            if (isCorrect) quizState.score++;
+
+            // 延遲後進入下一題
+            setTimeout(() => {
+                quizState.currentIndex++;
+                if (quizState.currentIndex < quizState.questions.length) {
+                    renderQuizQuestion();
+                } else {
+                    renderQuizResult('multiple_choice');
+                }
+            }, 1200);
+        }
+
+        async function enterSpellingQuiz() {
+            showAppLoading('Preparing Spelling Test...');
+            const units = await getUnitsFromRanges(currentExam.ranges);
+            let allWords = [];
+            units.forEach(u => {
+                if (u.vocab) allWords = allWords.concat(u.vocab);
+                if (u.spelling) allWords = allWords.concat(u.spelling);
+                if (u.HFW) allWords = allWords.concat(u.HFW);
+            });
+
+            const uniqueWords = [];
+            const seenWords = new Set();
+            allWords.forEach(v => {
+                // Only include words with definitions for this quiz type
+                if (v.word && v.def) {
+                    const wordKey = v.word.toLowerCase().trim();
+                    if (!seenWords.has(wordKey)) {
+                        seenWords.add(wordKey);
+                        uniqueWords.push(v);
+                    }
+                }
+            });
+
+            if (uniqueWords.length < 1) {
+                alert("No words available for test within range.");
+                renderExamDashboard(currentExam);
+                return;
+            }
+
+            uniqueWords.sort(() => Math.random() - 0.5);
+            const quizItems = uniqueWords.slice(0, 20);
+
+            quizState = { questions: quizItems.map(item => ({ target: item })), currentIndex: 0, score: 0, type: 'spelling' };
+            renderSpellingQuestion();
+        }
+
+        function renderSpellingQuestion() {
+            currentView = 'exam_quiz';
+            const app = document.getElementById('app');
+            updateNav(true);
+
+            const q = quizState.questions[quizState.currentIndex];
+            const progress = `${quizState.currentIndex + 1} / ${quizState.questions.length}`;
+
+            let html = `
+                <div class="animate-fade-in max-w-xl mx-auto px-1">
+                    <div class="mb-5 flex justify-between items-center border-b-2 border-[#e2e8e4] pb-3">
+                        <span class="text-[#8ba79b] font-bold text-base">Question ${progress}</span>
+                        <span class="text-[#bfa860] font-bold text-base">Score: ${quizState.score}</span>
+                    </div>
+
+                    <div class="bg-white rounded-3xl shadow-sm p-8 mb-8 border border-[#e2e8e4] text-center">
+                        <p class="text-[#8a7f96] text-sm font-bold mb-4">Definition & Hint:</p>
+                        <h2 class="text-xl font-bold text-[#3e504c] mb-6 leading-relaxed">${q.target.def}</h2>
+                        <button onclick="speakDual('${escapeForHtml(q.target.word)}', '', null)" class="text-[#6c8a7c] hover:bg-[#f4f7f6] border-2 border-[#e2e8e4] text-2xl transition w-16 h-16 rounded-full flex items-center justify-center mx-auto shadow-sm">
+                            <i class="fas fa-volume-up"></i>
+                        </button>
+                    </div>
+
+                    <div id="spelling-input-area" class="space-y-5">
+                        <input id="spelling-input" type="text" placeholder="Type word here..."
+                               class="w-full text-center text-3xl font-bold p-5 rounded-2xl border-2 border-[#e2e8e4] focus:border-[#8ba79b] outline-none text-[#3e504c] bg-[#fcfdfa] shadow-inner"
+                               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                        <button onclick="checkSpellingAnswer()" class="w-full bg-[#8ba79b] hover:bg-[#6c8a7c] text-white py-4 rounded-2xl text-xl font-bold transition shadow-md">
+                            Submit
+                        </button>
+                    </div>
+                </div>
+            `;
+            app.innerHTML = html;
+            
+            const inputEl = document.getElementById('spelling-input');
+            inputEl.focus();
+            inputEl.addEventListener('keyup', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    checkSpellingAnswer();
+                }
+            });
+            
+            setTimeout(() => speakDual(q.target.word, '', null), 400);
+        }
+
+        function checkSpellingAnswer() {
+            const inputEl = document.getElementById('spelling-input');
+            const userAnswer = inputEl.value.trim().toLowerCase();
+            const correctAnswer = quizState.questions[quizState.currentIndex].target.word.toLowerCase();
+            const isCorrect = userAnswer === correctAnswer;
+
+            document.getElementById('spelling-input-area').innerHTML = `
+                <div class="w-full text-center text-3xl font-bold p-5 rounded-2xl border-2 ${isCorrect ? 'bg-[#f0f4cd] border-[#bfa860] text-[#3e504c]' : 'bg-[#f0e8eb] border-[#d4b5b0] text-[#b8958f]'} shadow-inner">
+                    ${inputEl.value || '(Empty)'} ${isCorrect ? '<i class="fas fa-check ml-3"></i>' : '<i class="fas fa-times ml-3"></i>'}
+                </div>
+                ${!isCorrect ? `<div class="text-[#6c8a7c] text-center text-base font-bold mt-4">Correct Answer: <span class="font-extrabold tracking-wider text-xl text-[#3e504c] block mt-1">${quizState.questions[quizState.currentIndex].target.word}</span></div>` : ''}
+            `;
+
+            if (isCorrect) quizState.score++;
+
+            setTimeout(() => {
+                quizState.currentIndex++;
+                if (quizState.currentIndex < quizState.questions.length) {
+                    renderSpellingQuestion();
+                } else {
+                    renderQuizResult('spelling');
+                }
+            }, isCorrect ? 1000 : 2500);
+        }
+
+        function renderQuizResult(quizType) {
+            currentView = 'quiz_result';
+            const app = document.getElementById('app');
+            const score = quizState.score;
+            const total = quizState.questions.length;
+            const percentage = Math.round((score / total) * 100);
+            
+            let message = '';
+            let colorClass = '';
+
+            if (percentage === 100) {
+                message = 'Perfect Score! Amazing! 🎉';
+                
+            } else if (percentage >= 80) {
+                message = 'Great job! Keep it up! 👍';
+                colorClass = 'text-[#bfa860]';
+            } else if (percentage >= 60) {
+                message = 'Not bad! A little more practice! 💪';
+                colorClass = 'text-[#7d9e8d]';
+            } else {
+                message = 'You can do it! Review and try again! 📚';
+                colorClass = 'text-[#b8958f]';
+            }
+            const retryFunction = quizType === 'spelling' ? 'enterSpellingQuiz()' : 'enterExamQuiz()';
+
+            app.innerHTML = `
+                <div class="animate-fade-in text-center py-12 px-4">
+                    <i class="fas fa-seedling text-6xl ${colorClass} mb-6 animate-bounce"></i>
+                    <h2 class="text-5xl font-extrabold text-[#3e504c] mb-3">${score} <span class="text-2xl text-[#8a7f96]">/ ${total}</span></h2>
+                    <p class="text-[#8ba79b] text-lg font-bold mb-8">Accuracy ${percentage}%</p>
+                    
+                    <p class="text-2xl font-bold ${colorClass} mb-12 bg-white p-4 rounded-2xl shadow-sm border border-[#e2e8e4] inline-block">${message}</p>
+
+                    <div class="space-y-5 max-w-sm mx-auto">
+                        <button onclick="${retryFunction}" class="w-full bg-[#8ba79b] hover:bg-[#6c8a7c] text-white py-4 rounded-2xl text-xl font-bold shadow-md transition">
+                            Retry
+                        </button>
+                        <button onclick="renderExamDashboard(currentExam)" class="w-full bg-white text-[#6c8a7c] border-2 border-[#e2e8e4] py-4 rounded-2xl text-xl font-bold hover:bg-[#f4f7f6] transition">
+                            Back to Menu
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Utils 字串跳脫與色彩映射
+        function escapeForHtml(str) {
+            if (!str) return '';
+            return str.replace(/`/g, '\\`').replace(/"/g, '&quot;');
+        }
+
+        // 小工具：協助在 JS 中生成 Tailwind 的 border-color 樣式 (解決 JIT 問題的折衷方案)
+        // 因為我們用的是 CDN JIT，直接寫 class="border-blue-500" 只要 CDN 掃得到就可以。
+        // 但為了保險，這裡做一個簡單的 map 應付 renderGradeMenu 的 style 屬性
+        function tailwindColorMap(colorName) {
+            // 對應至 Sage 柔和色系
+            const colors = {
+                'sage-green': '#8ba79b', 
+                'sage-clay': '#d4b5b0', 
+                'sage-blue': '#8fa8c8', 
+                'sage-straw': '#d9cd90',
+                'sage-purple': '#a8a0b1',
+                'amber-500': '#d9cd90', 
+                'pink-400': '#d4b5b0', 
+                'sky-400': '#8fa8c8', 
+                'blue-400': '#8fa8c8', 
+                'emerald-400': '#8ba79b'
+            };
+            return colors[colorName] || '#8ba79b';
+        }
+    </script>
+</body>
+</html>
