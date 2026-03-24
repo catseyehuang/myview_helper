@@ -8,40 +8,32 @@ const CACHE_TIME = 10800; // 快取存活時間 (秒)，10800秒 = 3小時
 function doGet(e) {
   // 2026-03-24 更新：為了讓 GitHub Pages 抓資料，將資料轉為 JSON 字串回傳
   
-  // 1. 處理強制刷新快取的邏輯
-  // 網址加上 ?refresh=true 依然可以手動清除快取
+  // 1. 處理快取強制重新整理
+  // 網址加上 ?refresh=true 可以手動清除快取
   if (e.parameter.refresh === 'true') {
     clearCache();
   }
   
-  try {
-    // 2. 取得資料 
-    const data = getAllDataFromDrive();
-
-    // 3. 輸出純 JSON 資料
-    // 這是最精簡的 API 回傳方式
-    return ContentService.createTextOutput(JSON.stringify(data))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch (err) {
-    // 4. 錯誤處理：如果讀取過程出錯，回傳錯誤資訊的 JSON
-    const errorResponse = {
-      status: "error",
-      message: err.toString(),
-      timestamp: new Date().toISOString()
-    };
-    
-    return ContentService.createTextOutput(JSON.stringify(errorResponse))
-      .setMimeType(ContentService.MimeType.JSON);
+  // 2. 判斷請求類型：如果網址帶有 ?type=json，則回傳純 JSON 資料 (給 GitHub Pages 使用)
+  if (e.parameter.type === 'json') {
+    try {
+      const data = getAllDataFromDrive();
+      return ContentService.createTextOutput(JSON.stringify(data))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
   }
+
+  // 3. 預設模式：回傳原本的 HTML 網頁 (在 GAS 網址開啟時使用)
+  return HtmlService.createTemplateFromFile('Index')
+      .evaluate()
+      .setTitle('🌿 MyView Helper 🌿 ')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+
 }
 
-
-
-  //return HtmlService.createTemplateFromFile('Index')
-  //    .evaluate()
-  //    .setTitle('🌿 MyView Helper 🌿 ')
-  //    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 
 
 /**
