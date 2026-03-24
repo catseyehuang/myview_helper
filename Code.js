@@ -14,14 +14,16 @@ function doGet(e) {
     clearCache();
   }
   
-  // 2. 判斷請求類型：如果網址帶有 ?type=json，則回傳純 JSON 資料 (給 GitHub Pages 使用)
+  // 2. 判斷請求類型：判斷是否為 API 請求
+  // 如果網址帶有 ?type=json，則回傳純 JSON 資料 (給 GitHub Pages 使用)
   if (e.parameter.type === 'json') {
     try {
       const data = getAllDataFromDrive();
+      // 使用 ContentService 並明確設定 MIME 類型
       return ContentService.createTextOutput(JSON.stringify(data))
         .setMimeType(ContentService.MimeType.JSON);
     } catch (err) {
-      return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
+      return ContentService.createTextOutput(JSON.stringify({ error: err.toString() }))
         .setMimeType(ContentService.MimeType.JSON);
     }
   }

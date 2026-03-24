@@ -528,14 +528,15 @@
         // --- GAS API Fetching ---
         //2026-03-24 更新: 
 
-            const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyx0cRS0NJ4PKIQQr6ZaKIj_B-HDt_cCA3I_NpQPjxjnhA2RAN3K9q9J-Ys2uAa98gYIA/exec"; // MyView Helper GAS API URL (替換為實際 URL)
+            const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyx0cRS0NJ4PKIQQr6ZaKIj_B-HDt_cCA3I_NpQPjxjnhA2RAN3K9q9J-Ys2uAa98gYIA/exec?refresh=true"; // MyView Helper GAS API URL (替換為實際 URL)
 
         async function fetchDataFromDrive() {
             try {
                 // 改用 fetch 呼叫遠端的 GAS API，並處理回傳的 JSON 資料
                 console.log("正在從 GAS 抓取資料...");
                 // 關鍵修正：URL 加上 ?type=json 確保抓到的是 JSON 而非網頁
-                const response = await fetch(GAS_API_URL + "?type=json"); 
+                const response = await fetch(GAS_API_URL + "&type=json"); 
+                console.log("GAS API URL:", GAS_API_URL + "&type=json");
                 const data = await response.json();
                 
                 
@@ -778,6 +779,7 @@
         }
 
         // --- Data Retrieval (快取機制與 GAS 串接) ---
+        // 2026-03-24 更新：增加從 GAS API 抓取單一單元資料的功能，並更新快取
         async function loadUnitData(gradeDbKey, id) {
             const gradeData = db[gradeDbKey] || [];
             const unitIndex = gradeData.findIndex(u => u.id === id);
@@ -785,24 +787,18 @@
 
             const unit = db[gradeDbKey][unitIndex];
 
-            // 檢查是否已在快取中擁有完整資料 (這裡以 content 判斷，可視需求調整)
-            if (typeof google !== 'undefined' && google.script && unit.content === undefined) {
-                 return new Promise((resolve) => {
-                google.script.run
-                    .withSuccessHandler(fullUnitData => {
-                        // Cache the full data by replacing the lightweight object
-                        db[gradeDbKey][unitIndex] = fullUnitData;
-                        resolve(fullUnitData);
-                    })
-                        .withFailureHandler(error => {
-                            console.warn("GAS fetch failed for unit, using existing local data.", error);
-                            // 若後端讀取失敗，不要報錯，直接回傳目前本地擁有的資料
-                            resolve(unit);
-                        })
-                        .getUnitData(id);
-            });
+            // 關鍵修正：在 GitHub Pages 上，必須改用 fetch 抓取單一單元資料
+            if (unit.content === undefined) {
+                console.log(`正在從 API 抓取單元詳情: ${id}`);
+                const response = await fetch(`${GAS_API_URL}?type=json&id=${id}`);
+                const fullUnitData = await response.json();
+                
+                // 更新快取
+                db[gradeDbKey][unitIndex] = fullUnitData;
+                return fullUnitData;
             }
             return unit;
+
         }
 
         // --- Renderers 渲染器 ---
