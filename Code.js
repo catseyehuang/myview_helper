@@ -22,8 +22,6 @@ function doGet(e) {
       // 使用 ContentService 並明確設定 MIME 類型
       return ContentService.createTextOutput(JSON.stringify(data))
         .setMimeType(ContentService.MimeType.JSON);
-      // Set the Access-Control-Allow-Origin header to allow cross-origin requests from GitHub Pages
-        output.appendSetHeader('Access-Control-Allow-Origin', 'https://catseyehuang.github.io');
     } catch (err) {
       return ContentService.createTextOutput(JSON.stringify({ error: err.toString() }))
         .setMimeType(ContentService.MimeType.JSON);
