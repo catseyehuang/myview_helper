@@ -1,171 +1,212 @@
-# MyView Helper Google Apps Script 專案
+# MyView 小幫手 Google Apps Script
 
 ## 總覽
-
-此專案是一個基於 Google Apps Script (GAS) 的「MyView 小幫手」應用程式。它利用 Google Drive 作為後端資料儲存庫，存放教育內容（JSON 檔案），並透過部署為 Web App 的 GAS 服務，直接向使用者提供一個互動式的前端介面。
-
-專案的核心設計理念是：
-*   **資料集中管理**：所有課程和考試資料都以 JSON 格式儲存在 Google Drive 的指定資料夾中。
-*   **高效能存取**：透過 Google Apps Script 的 `CacheService` 實作快取機制，大幅減少對 Google Drive 的重複讀取，提升應用程式的反應速度。
-*   **單一服務部署**：前端 HTML 介面直接由 Google Apps Script 服務提供，簡化了部署流程。
-*   **豐富的互動功能**：前端包含課程瀏覽、單字練習、測驗等功能，並支援語音朗讀。
+此 Google Apps Script 專案 (`Code.js`) 作為 "MyView 小幫手" 應用程式的後端。它利用 Google Drive 儲存教育內容 (JSON 檔案)，並透過網頁應用程式 URL 提供這些資料。專案整合了強大的快取機制以提升效能，並處理跨來源請求，以便與 GitHub Pages 等前端應用整合。
 
 ## 功能特色
-
-### 後端 (`Code.js`)
-*   **Google Drive 資料庫**：將課程單元、考試設定等教育內容以 JSON 檔案形式儲存在指定的 Google Drive 資料夾中。
-*   **智慧快取機制**：
-    *   利用 `CacheService` 儲存從 Drive 讀取的資料，快取時間設定為 0.5 小時 (1800 秒)。
-    *   實作了 `putLargeCache` 和 `getLargeCache` 函式，支援將超過 100KB 限制的大型資料分塊儲存和讀取，有效克服 Apps Script 快取大小限制。
-*   **Web App 服務**：`doGet(e)` 函式作為 Web App 的入口點，直接回傳 `Index.html` 頁面。
-*   **資料動態載入**：
-    *   `getAllDataFromDrive()`：負責從快取或 Google Drive 讀取所有課程和考試的元數據 (metadata)。
-    *   `getUnitData(id)`：根據單元 ID 按需載入單一單元的完整詳細內容，支援在主資料夾和 `legacy` 子資料夾中搜尋，以實現向下相容。
-*   **資料整理與排序**：`fetchFromDriveAndBuildDB()` 函式會遍歷 Drive 中的 JSON 檔案，根據 `grade` 屬性將課程分類到 `grade1` 和 `grade2`，並將考試設定儲存到 `exams`。所有課程列表會按 `unit` 和 `week` 進行排序。
-*   **快取清除**：支援透過 URL 參數 `?refresh=true` 手動清除快取。
-*   **翻譯工具**：`translateList(texts)` 函式利用 `LanguageApp.translate` 進行英翻繁體中文的批次翻譯。
-
-### 前端 (`Index.html`)
-*   **單頁應用程式 (SPA)**：所有介面切換都在單一 HTML 頁面內完成，提供流暢的使用者體驗。
-*   **響應式設計**：採用 Tailwind CSS 框架，確保在不同裝置上都能良好顯示。
-*   **動態資料載入**：
-    *   `fetchDataFromDrive()`：在應用程式啟動時，透過 `google.script.run` 呼叫後端 `getAllDataFromDrive()` 獲取所有課程和考試的元數據。
-    *   `loadUnitData(gradeDbKey, id)`：當使用者點擊特定單元時，透過 `google.script.run` 呼叫後端 `getUnitData(id)` 獲取該單元的完整內容。
-    *   **本地測試模式**：如果偵測到不在 Google Apps Script 環境中執行 (例如在本地瀏覽器打開檔案)，會自動載入 `mockData` 進行測試，方便開發。
-*   **語音朗讀功能**：
-    *   利用瀏覽器的 `SpeechSynthesis` API 實現中英文雙語朗讀。
-    *   `speakDual()` 函式支援同時朗讀英文和中文，並提供語速調整。
-    *   `playAllSequence()` 函式支援循序播放列表中的所有內容。
-    *   智慧選擇最佳語音（Google、Microsoft、Premium 等）。
-*   **互動式測驗**：
-    *   **單字閃卡 (Words Flashcards)**：整合 Spelling、High Frequency Words (HFW) 和 Vocabulary 練習。
-    *   **意義測驗 (Meaning Quiz)**：多選題形式，測試單字的中文意義。
-    *   **拼寫測驗 (Spelling Test)**：聽寫單字，並輸入拼寫。
-*   **導覽與狀態管理**：透過 `currentView` 等全域變數管理應用程式的當前狀態和導覽流程，支援「回上一頁」功能。
-*   **美觀介面**：採用「Sage Style」設計風格，提供柔和的色彩和流暢的動畫效果。
+*   **以 Google Drive 作為資料庫：** 包含課程單元和考試設定的 JSON 檔案，會直接儲存在指定的 Google Drive 資料夾中進行管理。
+*   **快取機制：** 利用 Google Apps Script 的 `CacheService` 儲存常用資料，大幅減少 Drive API 的呼叫次數並改善回應時間。包含一個「分塊」機制以繞過 100KB 的快取項目大小限制。
+*   **網頁應用程式端點：** 提供一個 `doGet` 函式，可部署為 Google Apps Script 網頁應用程式。
+*   **JSON API：** 提供 `?type=json` 端點來回傳原始 JSON 資料，適合由外部前端（例如 GitHub Pages）使用。
+*   **預設 HTML 介面：** 當直接存取網址且未帶 `?type=json` 參數時，會提供一個基本的 HTML 頁面 (`Index.html`)。
+*   **按需載入單元資料：** `getUnitData(id)` 函式允許依據 ID 取得特定單元的完整詳細資料，並支援目前和「舊版」(legacy) 的檔案位置。
+*   **快取管理：** 支援透過 `?refresh=true` URL 參數手動清除快取。
+*   **國際化工具：** 包含一個 `translateList` 函式，可使用 `LanguageApp` 進行批次翻譯。
 
 ## 設定與部署
 
 ### 1. Google Drive 資料夾結構
+建立一個 Google Drive 資料夾，用來存放您的 JSON 資料檔案。
+*   課程單元檔案 (例如 `unit1_week1.json`, `unit2_week3.json`) 應直接放在此資料夾中。
+*   `exams.json` 檔案 (若有使用) 也應放在此資料夾中。
+*   您可以選擇性地建立一個名為 `legacy` 的子資料夾，用來存放舊版的單元 JSON 檔案。
 
-您需要在 Google Drive 中建立一個專門用於存放 JSON 資料檔案的資料夾。
+### 2. Google Apps Script 專案
+此專案設計為使用 Google Apps Script (GAS) 搭配 Clasp 進行部署。
 
-*   **主資料夾**：所有課程單元檔案 (例如 `1_1.json`, `2_5.json`) 和 `exams.json` 檔案應直接放在此資料夾中。
-*   **`legacy` 子資料夾 (可選)**：如果您的專案有舊版或不同來源的單元 JSON 檔案，可以將它們放在名為 `legacy` 的子資料夾中，`getUnitData` 函式會自動在此處搜尋。
+#### a. 克隆儲存庫 (如果適用)
+如果這是某個較大專案的一部分，請克隆它。
 
-### 2. Google Apps Script 專案設定
-
-此專案是為 Google Apps Script 設計的。建議使用 `clasp` 工具進行本地開發和同步。
-
-#### a. 設定 `FOLDER_ID`
-
-腳本需要知道您的 Google Drive 資料夾 ID。為安全起見，此 ID 應設定為指令碼屬性，而不是直接寫在程式碼中。
+#### b. 設定 `MYVIEW_FOLDER_ID`
+該腳本需要一個 Google Drive 資料夾 ID 來存放您的 JSON 資料。為安全起見，此 ID 應設定為腳本屬性。
 
 1.  前往您的 Google Apps Script 專案。
-2.  點擊左側邊欄的 `專案設定` (齒輪圖示)。
+2.  導覽至 `專案設定` (左側邊欄的齒輪圖示)。
 3.  在 `指令碼屬性` 下，點擊 `新增指令碼屬性`。
 4.  將 `屬性` 設定為 `MYVIEW_FOLDER_ID`，並將 `值` 設定為您 Google Drive 資料夾的實際 ID。
 
-#### b. 部署為 Web App
-
+#### c. 部署為網頁應用程式
 1.  在 Google Apps Script 編輯器中，點擊 `部署` > `新增部署作業`。
 2.  選擇 `網頁應用程式` 作為類型。
-3.  配置以下選項：
+3.  設定：
     *   `執行身分`：`我` (您的 Google 帳戶)。
-    *   `誰可以存取`：`任何人` (為了讓 Web App 可公開存取)。
-4.  點擊 `部署`。您將會得到一個 Web App URL。
+    *   `誰可以存取`：`任何人` (為了讓 API/網頁應用程式可公開存取)。
+4.  點擊 `部署`。您將會得到一個網頁應用程式的 URL。
 
-### 3. 前端檔案 (`Index.html`)
+## API 端點
 
-將 `Index.html` 檔案上傳到您的 Google Apps Script 專案中。在 Apps Script 編輯器中，點擊左側的 `檔案` > `新增檔案` > `HTML`，然後將 `Index.html` 的內容貼入。
+部署後的網頁應用程式 URL 可用於存取資料。
 
-## 使用方式
-
-### 1. 存取 Web App
-
-直接在瀏覽器中打開您部署後獲得的 Web App URL。應用程式將會自動載入資料並顯示首頁介面。
-
-### 2. 清除快取
-
-如果您更新了 Google Drive 中的 JSON 資料檔案，但應用程式沒有立即顯示最新內容，您可以透過在 Web App URL 後面加上 `?refresh=true` 參數來強制清除快取：
+### 1. 取得所有資料 (JSON API)
+若要以 JSON 字串形式擷取所有彙整資料 (一年級、二年級課程與考試)：
 
 ```
-您的Web應用程式URL?refresh=true
+YOUR_WEB_APP_URL?type=json
 ```
 
-這將會清除快取，下一次的請求將會從 Google Drive 重新讀取資料。
-
-## Google Drive 中的資料結構
-
-腳本預期在指定的 `MYVIEW_FOLDER_ID` 中找到以下 JSON 檔案：
-
-### 課程單元檔案
-
-每個課程單元都應為一個 JSON 檔案 (例如 `1_1.json`, `G2_U2_W2.json`)，其中包含一個至少具有以下屬性的物件：
-
+**Example Response Structure:**
 ```json
 {
-  "id": "唯一的單元ID (例如: 1_1, G2_U2_W2)",
-  "grade": 1,
-  "unit": 1,
-  "week": 1,
-  "title": "課程標題",
-  "subtitle": "課程副標題",
-  "type": "Informational Text",
-  "icon": "fa-cloud-sun",
-  "colorClass": "sage-green",
-  "video": "https://www.youtube.com/watch?v=...", // (可選) 相關影片連結
-  "content": [
-    // 完整的課程內容，每個物件代表一個段落或句子
-    { "title": "1", "en": "English sentence.", "zh": "中文翻譯。" }
+  "grade1": [
+    { "id": "unit1_week1", "grade": 1, "unit": 1, "week": 1, "title": "...", "subtitle": "...", "type": "...", "icon": "...", "colorClass": "..." },
+    // ... more grade 1 units
   ],
-  "highlights": [
-    // 課程重點或摘要
-    { "title": "Spring 🌱", "en": "English highlight.", "zh": "中文重點。" }
+  "grade2": [
+    { "id": "unit2_week1", "grade": 2, "unit": 2, "week": 1, "title": "...", "subtitle": "...", "type": "...", "icon": "...", "colorClass": "..." },
+    // ... more grade 2 units
   ],
-  "qa": [
-    // 問答練習
-    { "title": "Q&A 練習", "en": "English question?", "zh": "中文問題？" }
-  ],
-  "vocab": [
-    // 單字列表
-    { "word": "Spring", "zh": "春天", "def": "English definition.", "zhDef": "中文定義。", "example": "English example.", "zhExample": "中文例句。" }
-  ],
-  "spelling": [
-    // 拼寫單字
-    { "word": "Sunday", "zh": "星期日", "def": "English definition.", "zhDef": "中文定義。", "example": "English example.", "zhExample": "中文例句。" }
-  ],
-  "HFW": [
-    // 高頻單字
-    { "word": "air", "zh": "空氣", "def": "English definition.", "zhDef": "中文定義。", "example": "English example.", "zhExample": "中文例句。" }
+  "exams": [
+    // ... exam configuration objects
   ]
 }
 ```
 
-`fetchFromDriveAndBuildDB` 函式會為主要資料結構提取這些物件的「輕量級」版本，僅包含 `id`, `grade`, `unit`, `week`, `title`, `subtitle`, `type`, `icon`, `colorClass`。完整的 `content`、`highlights`、`qa`、`vocab`、`spelling`、`HFW` 僅由 `getUnitData` 函式按需載入。
+### 2. Clear Cache
+To force a refresh of the cached data (useful after updating JSON files in Google Drive):
 
-### 考試設定檔 (`exams.json`)
+```
+YOUR_WEB_APP_URL?refresh=true
+```
+This will clear the cache and the next request will re-read data from Google Drive.
 
-此檔案應包含一個 JSON 陣列，每個物件代表一個考試設定：
+### 3. Default HTML Page
+Accessing the web app URL without any parameters will serve the `Index.html` file.
+
+```
+YOUR_WEB_APP_URL
+```
+
+## Data Structure in Google Drive
+
+The script expects JSON files in the specified `MYVIEW_FOLDER_ID`.
+
+### Lesson Unit Files
+Each lesson unit should be a JSON file (e.g., `unit1_week1.json`) containing an object with at least the following properties:
+
+```json
+{
+  "id": "unique_unit_id",
+  "grade": 1,
+  "unit": 1,
+  "week": 1,
+  "title": "Lesson Title",
+  "subtitle": "Lesson Subtitle",
+  "type": "vocabulary",
+  "icon": "book",
+  "colorClass": "blue",
+  "content": {
+    // ... full lesson content
+  }
+}
+```
+The `fetchFromDriveAndBuildDB` function extracts a "lightweight" version of these objects for the main data structure, containing only `id`, `grade`, `unit`, `week`, `title`, `subtitle`, `type`, `icon`, `colorClass`. The full `content` is only loaded by `getUnitData`.
+
+### Exam Configuration File (`exams.json`)
+This file should contain a JSON array:
 
 ```json
 [
   {
-    "title": "🌿 Review Test 1",
-    "ranges": ["1_1", "1_5"] // 包含的單元 ID 列表
+    "examId": "midterm_grade1",
+    "title": "Grade 1 Midterm",
+    "units": ["unit1_week1", "unit1_week2", "unit2_week1"]
   },
   {
-    "title": "🍂 Review Test 2",
-    "ranges": ["G2_U2_W2"]
+    "examId": "final_grade2",
+    "title": "Grade 2 Final",
+    "units": ["unit3_week1", "unit3_week2", "unit4_week1"]
   }
 ]
 ```
 
-## 開發筆記
+## Internal Functions
 
-*   **Clasp 整合**：此專案可透過 `clasp` 工具進行本地開發和版本控制，方便程式碼管理和協作。
-*   **快取時間**：`CACHE_TIME` 設定為 0.5 小時 (1800 秒)。您可以根據資料更新頻率和對資料新鮮度的要求來調整此值。
-*   **前端資料獲取**：前端 `Index.html` 透過 `google.script.run` 直接與後端 `Code.js` 互動。這表示整個應用程式是作為一個 Google Apps Script Web App 部署和運行的。
-*   **本地測試**：前端 `Index.html` 內建了 `mockData`，當在非 Apps Script 環境中（例如直接在瀏覽器中打開 `Index.html` 檔案）運行時，會自動使用這些模擬資料，方便開發和測試。
+### `getUnitData(id)`
+This function is designed to be called internally by other Apps Script functions (e.g., from an `Index.html` scriptlet or another `doGet` handler for specific unit requests). It retrieves the *full* JSON content for a single unit by its `id`.
+
+```javascript
+// Example usage within another Apps Script function:
+function serveUnitPage(e) {
+  const unitId = e.parameter.id;
+  if (unitId) {
+    try {
+      const unitContent = getUnitData(unitId);
+      // Process unitContent, e.g., pass it to an HTML template
+      return HtmlService.createTemplateFromFile('UnitPage')
+          .evaluate({ unit: unitContent })
+          .setTitle(unitContent.title);
+    } catch (err) {
+      return ContentService.createTextOutput(`Error: ${err.message}`);
+    }
+  }
+  return HtmlService.createHtmlOutput("Please provide a unit ID.");
+}
+```
+
+### `translateList(texts)`
+A utility function for translating an array of strings from English to Traditional Chinese.
+
+```javascript
+// Example usage:
+const englishWords = ["hello", "world", "apple"];
+const translatedWords = translateList(englishWords);
+Logger.log(translatedWords); // Output: [你好, 世界, 蘋果]
+```
+
+## Development Notes
+*   **Clasp Integration:** The comment `// 2026-03-24 更新：轉向 Clasp git 分離架構。` indicates this project is managed with `clasp`, allowing local development and version control.
+*   **Cache Time:** The `CACHE_TIME` is set to 3 hours (10800 seconds). Adjust this based on how frequently your data changes and how fresh you need the data to be.
 
 ---
+
+## `Code.js` 檔案功能詳解
+
+這份 `Code.js` 檔案是應用程式的核心後端，其主要職責是管理和提供來自 Google Drive 的課程資料。
+
+### 1. 全域設定 (Global Configuration)
+*   `FOLDER_ID`: 存放所有課程 JSON 檔案的 Google Drive 資料夾 ID。此 ID 是透過 `PropertiesService` 從「指令碼屬性」中讀取，避免將其寫死在程式碼中，增加了安全性與彈性。
+*   `CACHE_KEY`: 用於在快取中儲存和讀取資料庫的唯一鍵值。
+*   `CACHE_TIME`: 設定快取的有效期限（預設為 3 小時），在此時間內程式會優先使用快取資料，大幅提升效能。
+
+### 2. `doGet(e)` - 主要進入點 (Main Entry Point)
+此函式是網頁應用程式的統一入口，它會根據 URL 參數執行不同的操作：
+*   **手動更新快取 (`?refresh=true`)**: 強制清除快取，以便在更新 Google Drive 檔案後能立即看到變更。
+*   **JSON API 模式 (`?type=json`)**: 回傳純 JSON 格式的所有課程資料，主要供外部前端（如 GitHub Pages）呼叫使用。
+*   **預設 HTML 模式**: 回傳 `Index.html` 範本，作為在 Google Apps Script 網址上直接瀏覽的網頁介面。
+
+### 3. `getAllDataFromDrive()` - 資料讀取與快取策略
+這是資料處理的核心，採用「快取優先」策略：
+1.  **命中快取 (Cache Hit)**: 優先嘗試從 `CacheService` 讀取資料，若成功則直接回傳，速度最快。
+2.  **錯失快取 (Cache Miss)**: 若快取中無資料，則呼叫 `fetchFromDriveAndBuildDB()` 從 Google Drive 讀取。
+3.  **寫入快取**: 從 Drive 取得資料後，會將其存入快取，供下次請求使用。
+
+### 4. `fetchFromDriveAndBuildDB()` - 實際資料處理
+此函式負責與 Google Drive 互動，是整個流程中最耗時的部分：
+*   遍歷指定資料夾中的所有 `.json` 檔案。
+*   根據檔案內容進行分類：陣列視為 `exams.json`，包含 `grade` 屬性的物件視為課程單元。
+*   為了優化主資料包的大小，它只會抽取出課程單元的「元數據」（如 ID、標題等）建立一個輕量級物件。
+*   最後，對各年級的課程列表進行排序（先按單元，再按週次）。
+
+### 5. `getUnitData(id)` - 按需載入完整資料
+當前端需要特定單元的完整內容時，才會呼叫此函式。它會根據傳入的 `id` 找到對應的 `.json` 檔案，讀取並回傳完整的 JSON 內容。此函式還支援在 `legacy` 子資料夾中搜尋，以實現向下相容。
+
+### 6. `clearCache()` - 快取清除
+一個輔助函式，用於手動移除所有相關的快取資料。
+
+### 7. `putLargeCache()` & `getLargeCache()` - 快取分塊處理
+這是一組應對 Google Apps Script `CacheService` 每個鍵值對 100KB 大小限制的工具函式。
+*   `putLargeCache`: 當資料大小超過限制時，會自動將其切割成數個「區塊」分別儲存。
+*   `getLargeCache`: 讀取時，會自動將所有區塊重新組合成完整的原始資料。
+
+### 8. `translateList(texts)` - 翻譯工具
+一個使用內建 `LanguageApp` 將英文單字陣列批次翻譯成繁體中文的工具函式。

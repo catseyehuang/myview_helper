@@ -1,19 +1,42 @@
-// 請將此處換成你存放 JSON 檔案的 Google Drive 資料夾 ID
-const FOLDER_ID = '13c9mgMKu99uEjqHX_SQZ-dPGYwVB_fDO';
+// 2026-03-24 更新：轉向 Clasp git 分離架構。
+
+// 存放 JSON 檔案的 Google Drive 資料夾 ID，確保私密性，改從PropertiesService讀取
+const FOLDER_ID = PropertiesService.getScriptProperties().getProperty('MYVIEW_FOLDER_ID');
 const CACHE_KEY = 'MYVIEW_DB_CACHE';
-const CACHE_TIME = 1800; // 快取存活時間 (秒)，1800秒 = 0.5小時
+const CACHE_TIME = 10800; // 快取存活時間 (秒)，10800秒 = 3小時
 
 function doGet(e) {
-  // 如果網址有 ?refresh=true，則強制清除快取重新讀取
+  // 2026-03-24 更新：為了讓 GitHub Pages 抓資料，將資料轉為 JSON 字串回傳
+  
+  // 1. 處理快取強制重新整理
+  // 網址加上 ?refresh=true 可以手動清除快取
   if (e.parameter.refresh === 'true') {
     clearCache();
   }
+  
+  // 2. 判斷請求類型：判斷是否為 API 請求
+  // 如果網址帶有 ?type=json，則回傳純 JSON 資料 (給 GitHub Pages 使用)
+  if (e.parameter.type === 'json') {
+    try {
+      const data = getAllDataFromDrive();
+      // 使用 ContentService 並明確設定 MIME 類型
+      return ContentService.createTextOutput(JSON.stringify(data))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ error: err.toString() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
 
+  // 3. 預設模式：回傳原本的 HTML 網頁 (在 GAS 網址開啟時使用)
   return HtmlService.createTemplateFromFile('Index')
       .evaluate()
       .setTitle('🌿 MyView Helper 🌿 ')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+
 }
+
+
 
 /**
  * 讀取資料的主入口
@@ -25,7 +48,7 @@ function getAllDataFromDrive() {
   // 1. 嘗試從快取讀取
   const cachedData = getLargeCache(cache, CACHE_KEY);
   if (cachedData) {
-    Logger.log("✅ 命中快取！直接回傳資料 (秒開)");
+    Logger.log("✅ 命中快取！直接回傳資料");
     return JSON.parse(cachedData);
   }
 
