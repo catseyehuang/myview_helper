@@ -528,17 +528,18 @@
         // --- GAS API Fetching ---
         //2026-03-24 更新: 
 
-            const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyx0cRS0NJ4PKIQQr6ZaKIj_B-HDt_cCA3I_NpQPjxjnhA2RAN3K9q9J-Ys2uAa98gYIA/exec?refresh=true"; // MyView Helper GAS API URL (替換為實際 URL)
+            const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyx0cRS0NJ4PKIQQr6ZaKIj_B-HDt_cCA3I_NpQPjxjnhA2RAN3K9q9J-Ys2uAa98gYIA/exec"; // MyView Helper GAS API URL (替換為實際 URL)
 
         async function fetchDataFromDrive() {
             try {
                 // 改用 fetch 呼叫遠端的 GAS API，並處理回傳的 JSON 資料
                 console.log("正在從 GAS 抓取資料...");
-                // 關鍵修正：URL 加上 ?type=json 確保抓到的是 JSON 而非網頁
-                const response = await fetch(GAS_API_URL + "&type=json"); 
-                console.log("GAS API URL:", GAS_API_URL + "&type=json");
+                // 關鍵修正：動態判斷並拼接 type=json 確保抓到的是 JSON 而非網頁
+                const separator = GAS_API_URL.includes('?') ? '&' : '?';
+                const fetchUrl = `${GAS_API_URL}${separator}type=json`;
+                const response = await fetch(fetchUrl); 
+                console.log("GAS API URL:", fetchUrl);
                 const data = await response.json();
-                
                 
                 console.log("抓取成功：", data);
                 onDataLoaded(data);
@@ -790,7 +791,9 @@
             // 關鍵修正：在 GitHub Pages 上，必須改用 fetch 抓取單一單元資料
             if (unit.content === undefined) {
                 console.log(`正在從 API 抓取單元詳情: ${id}`);
-                const response = await fetch(`${GAS_API_URL}?type=json&id=${id}`);
+                const separator = GAS_API_URL.includes('?') ? '&' : '?';
+                const fetchUrl = `${GAS_API_URL}${separator}type=json&id=${id}`;
+                const response = await fetch(fetchUrl);
                 const fullUnitData = await response.json();
                 
                 // 更新快取

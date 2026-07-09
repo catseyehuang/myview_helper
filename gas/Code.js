@@ -6,20 +6,31 @@ const CACHE_KEY = 'MYVIEW_DB_CACHE';
 const CACHE_TIME = 10800; // 快取存活時間 (秒)，10800秒 = 3小時
 
 function doGet(e) {
-  // 2026-03-24 更新：為了讓 GitHub Pages 抓資料，將資料轉為 JSON 字串回傳
-  
-  // 1. 處理快取強制重新整理
-  // 網址加上 ?refresh=true 可以手動清除快取
+  // 1. 處理快取與資料庫強制重新整理 (需要 token 驗證防惡意刷配額)
   if (e.parameter.refresh === 'true') {
-    clearCache();
+    const adminToken = PropertiesService.getScriptProperties().getProperty('ADMIN_TOKEN') || 'myview_admin_secure_token_123';
+    if (e.parameter.token === adminToken) {
+      clearCache();
+      rebuildAndSaveDatabaseIndex();
+      return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Database index compiled and cache refreshed." }))
+        .setMimeType(ContentService.MimeType.JSON);
+    } else {
+      return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Unauthorized. Invalid token." }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
   }
   
   // 2. 判斷請求類型：判斷是否為 API 請求
-  // 如果網址帶有 ?type=json，則回傳純 JSON 資料 (給 GitHub Pages 使用)
   if (e.parameter.type === 'json') {
     try {
-      const data = getAllDataFromDrive();
-      // 使用 ContentService 並明確設定 MIME 類型
+      let data;
+      if (e.parameter.id) {
+        // 抓取單一單元完整資料
+        data = getUnitData(e.parameter.id);
+      } else {
+        // 抓取整個 Metadata 資料庫 (優先讀取編譯好的 db_index.json)
+        data = getAllDataFromDrive();
+      }
       return ContentService.createTextOutput(JSON.stringify(data))
         .setMimeType(ContentService.MimeType.JSON);
     } catch (err) {
@@ -33,14 +44,13 @@ function doGet(e) {
       .evaluate()
       .setTitle('🌿 MyView Helper 🌿 ')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-
 }
 
 
 
 /**
  * 讀取資料的主入口
- * 先看快取有沒有，沒有才去 Drive 讀取
+ * 先看快取有沒有，快取沒有就嘗試讀取 db_index.json 檔案，最後才掃描資料夾重建
  */
 function getAllDataFromDrive() {
   const cache = CacheService.getScriptCache();
@@ -52,20 +62,68 @@ function getAllDataFromDrive() {
     return JSON.parse(cachedData);
   }
 
-  // 2. 快取沒資料，才去 Drive 慢慢讀
-  Logger.log("⚠️ 快取無資料，正在掃描 Drive...");
-  const db = fetchFromDriveAndBuildDB();
-
-  // 3. 寫入快取 (供下次使用)
-  // 將物件轉成字串並存入，有效時間 0.5 小時
+  Logger.log("⚠️ 快取無資料，嘗試從 Drive 讀取已彙整的 db_index.json...");
+  
+  let db;
   try {
-    const jsonString = JSON.stringify(db);
-    putLargeCache(cache, CACHE_KEY, jsonString, CACHE_TIME);
-    Logger.log("💾 資料已寫入快取");
+    const folder = DriveApp.getFolderById(FOLDER_ID);
+    const files = folder.getFilesByName('db_index.json');
+    if (files.hasNext()) {
+      const file = files.next();
+      const content = file.getBlob().getDataAsString();
+      db = JSON.parse(content);
+      Logger.log("✅ 成功自 Drive 讀取 db_index.json");
+    }
   } catch (err) {
-    Logger.log("快取寫入失敗 (可能資料過大): " + err);
+    Logger.log("讀取 db_index.json 失敗: " + err);
   }
 
+  // 如果找不到已彙整檔案，才進行全資料夾掃描（Fallback 機制）
+  if (!db) {
+    Logger.log("⚠️ 找不到 db_index.json，進行全資料夾掃描與編譯...");
+    db = rebuildAndSaveDatabaseIndex();
+  } else {
+    // 寫入快取
+    try {
+      const jsonString = JSON.stringify(db);
+      putLargeCache(cache, CACHE_KEY, jsonString, CACHE_TIME);
+      Logger.log("💾 彙整資料已載入並寫入快取");
+    } catch (err) {
+      Logger.log("快取寫入失敗: " + err);
+    }
+  }
+
+  return db;
+}
+
+/**
+ * 重新掃描 Drive 並產生/更新彙整的 db_index.json 檔案，同時寫入快取
+ */
+function rebuildAndSaveDatabaseIndex() {
+  const db = fetchFromDriveAndBuildDB();
+  const jsonString = JSON.stringify(db);
+  
+  const folder = DriveApp.getFolderById(FOLDER_ID);
+  const files = folder.getFilesByName('db_index.json');
+  
+  if (files.hasNext()) {
+    const file = files.next();
+    file.setContent(jsonString);
+    Logger.log("📝 已更新現有的 db_index.json 檔案");
+  } else {
+    folder.createFile('db_index.json', jsonString, 'application/json');
+    Logger.log("📝 已建立新的 db_index.json 檔案");
+  }
+  
+  // 寫入快取
+  const cache = CacheService.getScriptCache();
+  try {
+    putLargeCache(cache, CACHE_KEY, jsonString, CACHE_TIME);
+    Logger.log("💾 重新編譯資料已寫入快取");
+  } catch (err) {
+    Logger.log("快取寫入失敗: " + err);
+  }
+  
   return db;
 }
 
@@ -86,8 +144,8 @@ function fetchFromDriveAndBuildDB() {
   while (files.hasNext()) {
     const file = files.next();
     
-    // 只處理 JSON 檔案
-    if (file.getMimeType() === 'application/json' || file.getName().endsWith('.json')) {
+    // 只處理 JSON 檔案且排除編譯出的索引檔案 db_index.json
+    if ((file.getMimeType() === 'application/json' || file.getName().endsWith('.json')) && file.getName() !== 'db_index.json') {
       try {
         const content = file.getBlob().getDataAsString();
         const json = JSON.parse(content);
