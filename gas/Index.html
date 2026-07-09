@@ -145,368 +145,9 @@
 
     <script>
         // --------------------------------------------------------
-        // 1. 本地測試資料 (Mock Data) - 作為 GAS 連線失敗時的備用方案，
-        // 確保介面可直接預覽測試。
+        // 1. 本地測試資料 (Mock Data) 聲明
         // --------------------------------------------------------
-        const mockData = {
-            grade1: [
-                {
-                    id: "1_1", 
-                    grade: 1, 
-                    unit: 5, 
-                    week: 1, 
-                    title: "1.5.1 Every Season", 
-                    subtitle: "每一個季節 🌸", 
-                    type: "Informational Text", 
-                    icon: "fa-cloud-sun", 
-                    colorClass: "sage-green", 
-                    bgClass: "bg-[#8ba79b]",
-                    video: "https://www.youtube.com/watch?v=Tf6pJC9m2D0",
-                    content: [
-                        { title: "1", en: "I Love Spring when grass grows green.", zh: "我愛春天，草地變綠的時候。" },
-                        { title: "2", en: "Seeds sprout. Flowers bloom.", zh: "種子發芽，花兒綻放。" }
-                    ],
-                    highlights: [
-                        { title: "Spring 🌱", en: "I Love Spring when grass grows green. ... Seeds sprout. Flowers bloom.", zh: "我愛春天，草地變綠的時候。……種子發芽，花兒綻放。" }
-                    ],
-                    qa: [],
-                    vocab: [
-                        { word: "Spring", zh: "春天", def: "The season after winter and before summer.", zhDef: "冬天之後、夏天之前的季節。", example: "Spring is warm.", zhExample: "春天很溫暖。" }
-                    ],
-                    spelling: [],
-                    HFW: []
-                }
-            ],
-            grade2: [
-                {
-                  "id": "G2_U2_W2",
-                  "grade": 2,
-                  "unit": 2,
-                  "week": 2,
-                  "title": "2.2.2: A Home on the Prairie",
-                  "subtitle": "草原上的家",
-                  "type": "Informational Text",
-                  "icon": "fa-seedling",
-                  "colorClass": "amber-500",
-                  "bgClass": "bg-amber-500",
-                  "video": "https://www.youtube.com/watch?v=G3y1CzzhE5E",
-                  "highlights": [
-                    {
-                      "title": "Setting 故事背景",
-                      "en": "This informational text explores the North American prairie, a large, open grassland habitat with very few trees.",
-                      "zh": "這篇說明文探索了北美大草原，這是一個幾乎沒有樹木的廣闊、開闊的草地棲息地。"
-                    },
-                    {
-                      "title": "Plot 核心內容",
-                      "en": "The text describes various animals that live on the prairie, such as American bison, prairie dogs, and rattlesnakes, and explains how they survive in their environment through burrows and grazing.",
-                      "zh": "本文描述了生活在大草原上的各種動物（如美洲野牛、草原犬鼠和響尾蛇），並解釋了牠們如何透過洞穴和吃草在環境中生存。"
-                    },
-                    {
-                      "title": "Highlights",
-                      "en": "A prairie is a large, open grassland with almost no trees.",
-                      "zh": "大草原是一片廣闊、開闊的草地，幾乎沒有樹木。"
-                    },
-                    {
-                      "en": "Bison and deer are prairie grazers, which means they feed on prairie grasses.",
-                      "zh": "野牛和鹿是大草原上的食草動物，這意味著牠們以大草原上的草為食。"
-                    },
-                    {
-                      "en": "Many prairie animals live in underground holes called burrows.",
-                      "zh": "許多大草原動物生活在被稱為地穴的地下洞穴中。"
-                    },
-                    {
-                      "en": "Prairie dog burrows connect to form groups, or colonies. These colonies are almost like underground towns.",
-                      "zh": "草原犬鼠的地穴相連形成群體，或稱為聚落。這些聚落簡直就像地下城鎮。"
-                    }
-                  ],
-                  "qa": [
-                    {
-                      "title": "Q&A 練習",
-                      "en": "What kind of habitat is a prairie?",
-                      "zh": "問題：大草原是哪種棲息地？"
-                    },
-                    {
-                      "en": "A prairie is a large, open grassland with almost no trees where many different grasses grow.",
-                      "zh": "答案：大草原是一片幾乎沒有樹木的廣闊開闊草地，生長著許多不同種類的草。"
-                    },
-                    {
-                      "title": "Q&A 練習",
-                      "en": "What is a prairie colony?",
-                      "zh": "問題：什麼是草原群落？"
-                    },
-                    {
-                      "en": "Colonies are groups of animals, like prairie dogs, that live in connected burrows which are like underground towns.",
-                      "zh": "答案：群落是指像草原犬鼠這樣的一群動物，牠們居住在相連的洞穴中，就像地下小鎮一樣。"
-                    },
-                    {
-                      "en": "How does a rattlesnake warn its enemies?",
-                      "zh": "問題：響尾蛇如何警告牠的天敵？"
-                    },
-                    {
-                      "en": "A rattlesnake rattles its tail to warn its enemies to stay away.",
-                      "zh": "答案：響尾蛇會搖動尾巴發出響聲，以警告天敵遠離。"
-                    },
-                    {
-                      "en": "What do prairie grazers eat?",
-                      "zh": "問題：草原食草動物吃什麼？"
-                    },
-                    {
-                      "en": "Grazers like bison and deer feed on the tallgrass, mixed-grass, and short-grass that grow on the prairie.",
-                      "zh": "答案：食草動物如野牛和鹿，以生長在草原上的長草、混合草和短草為食。"
-                    }
-                  ],
-                  "vocab": [
-                    {
-                      "word": "prairie",
-                      "zh": "大草原",
-                      "def": "A large, open grassland with very few trees.",
-                      "zhDef": "幾乎沒有樹木的廣闊、開闊的草地。",
-                      "example": "North American grassland is called a prairie.",
-                      "zhExample": "北美的草地被稱為大草原。"
-                    },
-                    {
-                      "word": "habitat",
-                      "zh": "棲息地",
-                      "def": "The place where a plant or animal usually lives.",
-                      "zhDef": "植物或動物通常居住的地方。",
-                      "example": "Animals live in a habitat where they can find everything they need to live.",
-                      "zhExample": "動物生活在一個可以找到生存所需一切的棲息地中。"
-                    },
-                    {
-                      "word": "grazers",
-                      "zh": "食草動物",
-                      "def": "Animals that feed on growing grasses.",
-                      "zhDef": "以生長的草類為食的動物。",
-                      "example": "Bison and deer are prairie grazers.",
-                      "zhExample": "野牛和鹿是草原食草動物。"
-                    },
-                    {
-                      "word": "burrows",
-                      "zh": "洞穴",
-                      "def": "Holes or tunnels in the ground that are made by a small animal.",
-                      "zhDef": "由小動物在地面挖掘的孔洞或隧道。",
-                      "example": "Many prairie animals live in underground holes called burrows.",
-                      "zhExample": "許多草原動物住在被稱為「洞穴」的地下洞裡。"
-                    },
-                    {
-                      "word": "colonies",
-                      "zh": "群落",
-                      "def": "Groups of animals that live in one place.",
-                      "zhDef": "居住在同一個地方的一群動物。",
-                      "example": "Prairie dog burrows connect to form groups, or colonies.",
-                      "zhExample": "草原犬鼠的洞穴相連形成群落。"
-                    },
-                    {
-                      "word": "bison",
-                      "zh": "美洲野牛",
-                      "def": "Prairie animals with large heads and high, humped shoulders.",
-                      "zhDef": "頭部巨大且肩膀高聳隆起的草原動物。",
-                      "example": "American bison roam the prairies.",
-                      "zhExample": "美洲野牛在草原上漫遊。"
-                    }
-                    ],
-                    "content": [
-                    {
-                      "title": "1",
-                      "en": "What Is This Place? Just imagine you're surrounded by tall grass. When you look up, you see nothing but sky.",
-                      "zh": "這是什麼地方？想像一下你被高高的草叢包圍。抬頭一看，除了天空什麼也沒有。"
-                    },
-                    {
-                      "title": "2",
-                      "en": "You hear a rattlesnake shake its tail. You watch a prairie dog dive into a hole.",
-                      "zh": "你聽到響尾蛇搖動尾巴的聲音。我看著一隻草原犬鼠鑽進洞裡。"
-                    },
-                    {
-                      "title": "3",
-                      "en": "Where are we?",
-                      "zh": "我們在哪裡？"
-                    },
-                    {
-                      "title": "4",
-                      "en": "We're on a North American prairie!",
-                      "zh": "我們在北美大草原上！"
-                    },
-                    {
-                      "title": "5",
-                      "en": "A prairie is a type of habitat. A habitat is where a plant or animal usually lives.",
-                      "zh": "大草原是一種棲息地。棲息地通常是植物或動物生活的地方。"
-                    },
-                    {
-                      "title": "6",
-                      "en": "A prairie is a large, open grassland with almost no trees.",
-                      "zh": "大草原是一片廣闊、開闊的草地，幾乎沒有樹木。"
-                    },
-                    {
-                      "title": "7",
-                      "en": "Many different kinds of grasses grow on the prairie. There are tallgrass, mixed-grass, and short-grass prairies.",
-                      "zh": "大草原上生長著許多不同種類的草。有高草、混合草和短草大草原。"
-                    },
-                    {
-                      "title": "8",
-                      "en": "Bluestem and Indian grass are the tallest grasses on the prairie.",
-                      "zh": "藍莖草和印第安草是大草原上最高的草。"
-                    },
-                    {
-                      "title": "9",
-                      "en": "American bison roam the prairies. Another name for bison is buffalo.",
-                      "zh": "美洲野牛在大草原上漫遊。野牛的另一個名字是水牛 (buffalo)。"
-                    },
-                    {
-                      "title": "10",
-                      "en": "Bison and deer are prairie grazers, which means they feed on prairie grasses.",
-                      "zh": "野牛和鹿是大草原上的食草動物，這意味著牠們以大草原上的草為食。"
-                    },
-                    {
-                      "title": "11",
-                      "en": "Many prairie animals live in underground holes called burrows. Badgers, black-footed ferrets, prairie dogs, and burrowing owls all spend time in these holes.",
-                      "zh": "許多大草原動物生活在被稱為地穴的地下洞穴中。獾、黑足鼬、草原犬鼠和穴鴞都在這些洞穴裡消磨時間。"
-                    },
-                    {
-                      "title": "12",
-                      "en": "Prairie dog burrows connect to form groups, or colonies. These colonies are almost like underground towns.",
-                      "zh": "草原犬鼠的地穴相連形成群體，或稱為聚落。這些聚落簡直就像地下城鎮。"
-                    },
-                    {
-                      "title": "13",
-                      "en": "The prairie is an exciting place to explore! Peek among the tall grasses. You'll meet this black-footed ferret and other truly amazing animals that live in this habitat!",
-                      "zh": "大草原是一個令人興奮的探索之地！在高高的草叢中偷看。你會遇到這隻黑足鼬和其他生活在這個棲息地的真正令人驚奇的動物！"
-                    },
-                    {
-                      "title": "14",
-                      "en": "A Day in the Life of a Rattlesnake. How does a rattlesnake spend most of its time? A rattlesnake hides in burrows or under rocks or plants.",
-                      "zh": "響尾蛇生活中的一天。響尾蛇如何度過牠大部分的時間？響尾蛇躲在地穴裡，或者岩石或植物下。"
-                    },
-                    {
-                      "title": "15",
-                      "en": "What does a rattlesnake eat? A rattlesnake eats mice, ground squirrels, and younger prairie dogs and rabbits.",
-                      "zh": "響尾蛇吃什麼？響尾蛇吃老鼠、地松鼠以及較幼小的草原犬鼠和兔子。"
-                    },
-                    {
-                      "title": "16",
-                      "en": "What are a rattlesnake's enemies? Humans, hawks, and eagles are a rattlesnake's enemies.",
-                      "zh": "響尾蛇的天敵是什麼？人類、老鷹和雕是響尾蛇的天敵。"
-                    },
-                    {
-                      "title": "17",
-                      "en": "Does a rattlesnake have a special trick? A rattlesnake rattles its tail as a warning to stay away.",
-                      "zh": "響尾蛇有什麼特殊的把戲嗎？響尾蛇搖動尾巴作為警告，讓人遠離。"
-                    }
-                    ],
-                  "spelling": [
-                    {
-                      "word": "Sunday",
-                      "zh": "星期日",
-                      "def": "The first day of the week.",
-                      "zhDef": "一週的第一天。",
-                      "example": "The first day of the week is Sunday.",
-                      "zhExample": "一週的第一天是星期日。"
-                    },
-                    {
-                      "word": "Saturday",
-                      "zh": "星期六",
-                      "def": "The first day of the weekend.",
-                      "zhDef": "週末的第一天。",
-                      "example": "Saturday is the first day of the weekend.",
-                      "zhExample": "星期六是週末的第一天。"
-                    },
-                    {
-                      "word": "Thursday",
-                      "zh": "星期四",
-                      "def": "The day of the week before Friday.",
-                      "zhDef": "星期五之前的那一天。",
-                      "example": "Thursday was named after a God named Thor.",
-                      "zhExample": "星期四是以名為索爾的神來命名的。"
-                    },
-                    {
-                      "word": "Monday",
-                      "zh": "星期一",
-                      "def": "The day of the week after Sunday.",
-                      "zhDef": "星期日之後的那一天。",
-                      "example": "We go back to school on Monday after a fun weekend.",
-                      "zhExample": "在一個有趣的週末之後，我們星期一回到學校。"
-                    },
-                    {
-                      "word": "Friday",
-                      "zh": "星期五",
-                      "def": "The final day of the school week.",
-                      "zhDef": "上學週的最後一天。",
-                      "example": "The final day of the school week is Friday.",
-                      "zhExample": "上學週的最後一天是星期五。"
-                    },
-                    {
-                      "word": "brain",
-                      "zh": "大腦",
-                      "def": "The organ inside the head that controls thought.",
-                      "zhDef": "頭部內控制思想的器官。",
-                      "example": "I think with the big brain in my head.",
-                      "zhExample": "我用我頭部裡的大腦來思考。"
-                    },
-                    {
-                      "word": "pay",
-                      "zh": "支付",
-                      "def": "To give money for goods or work.",
-                      "zhDef": "為商品或工作給付金錢。",
-                      "example": "I had to pay a lot of money to buy a new car.",
-                      "zhExample": "我必須支付很多錢來買一輛新車。"
-                    },
-                    {
-                      "word": "paint",
-                      "zh": "顏料/畫",
-                      "def": "A colored liquid used for coloring surfaces.",
-                      "zhDef": "用於給表面著色的有色液體。",
-                      "example": "I used blue paint in Art class.",
-                      "zhExample": "我在美術課上使用了藍色顏料。"
-                    },
-                    {
-                      "word": "great",
-                      "zh": "很棒的/極好的",
-                      "def": "Very good or large.",
-                      "zhDef": "非常好的或巨大的。",
-                      "example": "This movie was really great, I loved it.",
-                      "zhExample": "這部電影真的很棒，我喜歡它。"
-                    },
-                    {
-                      "word": "break",
-                      "zh": "休息/打破",
-                      "def": "A pause in work or during an activity.",
-                      "zhDef": "工作或活動中的暫停。",
-                      "example": "When the class is over we have break time.",
-                      "zhExample": "下課後我們有休息時間。"
-                    }
-                    ],
-                  "HFW": [
-                    {
-                      "word": "air",
-                      "zh": "空氣",
-                      "def": "The invisible gas that surrounds the Earth.",
-                      "zhDef": "圍繞地球的無形氣體。",
-                      "example": "Animals and plants need air to breathe.",
-                      "zhExample": "動物和植物需要空氣來呼吸。"
-                    },
-                    {
-                      "word": "kind",
-                      "zh": "親切的/友善的",
-                      "def": "Helpful and generous to others.",
-                      "zhDef": "對他人有幫助且慷慨的。",
-                      "example": "The kind lady helped me find my mom.",
-                      "zhExample": "那位親切的女士幫我找到了媽媽。"
-                    },
-                    {
-                      "word": "change",
-                      "zh": "更換/改變",
-                      "def": "To make or become different.",
-                      "zhDef": "使...不同或變得不同。",
-                      "example": "I will change my mask if I sneeze.",
-                      "zhExample": "如果我打噴嚏，我就會更換口罩。"
-                    }
-                  ]
-                }
-            ],
-            exams: [
-                { title: "🌿 Review Test 1", ranges: ["1_1", "1_5"] },
-                { title: "🍂 Review Test 2", ranges: ["2_1", "2_2"] }
-            ]
-        };
+        let mockData = null;
 
         // State
         let db = { grade1: [], grade2: [], exams: [] };
@@ -526,21 +167,37 @@
         });
 
         // --- GAS Data Fetching ---
-        function fetchDataFromDrive() {
+        async function fetchDataFromDrive() {
             // 嘗試呼叫 GAS，如果沒有 google.script 物件 (即在本地環境)，則直接載入 Mock Data
             if (typeof google !== 'undefined' && google.script) {
-            google.script.run
-                .withSuccessHandler(onDataLoaded)
-                    .withFailureHandler(error => {
+                google.script.run
+                    .withSuccessHandler(onDataLoaded)
+                    .withFailureHandler(async error => {
                         console.warn("GAS fetch failed, falling back to mock data.", error);
-                        onDataLoaded(mockData);
+                        try {
+                            const response = await fetch('./mock_data.json');
+                            const data = await response.json();
+                            onDataLoaded(data);
+                        } catch (err) {
+                            onDataError(error);
+                        }
                     })
-                .getAllDataFromDrive();
+                    .getAllDataFromDrive();
             } else {
-                console.log("Running locally, loading mock data.");
-                setTimeout(() => {
-                    onDataLoaded(mockData);
-                }, 1200); // 模擬稍微載入時間
+                console.log("Running locally, loading mock data...");
+                try {
+                    let response;
+                    try {
+                        response = await fetch('./mock_data.json');
+                    } catch (e) {
+                        response = await fetch('../docs/mock_data.json');
+                    }
+                    const data = await response.json();
+                    setTimeout(() => onDataLoaded(data), 500);
+                } catch (err) {
+                    console.error("Failed to load mock data:", err);
+                    onDataError(err);
+                }
             }
         }
 
@@ -778,22 +435,38 @@
 
             const unit = db[gradeDbKey][unitIndex];
 
-            // 檢查是否已在快取中擁有完整資料 (這裡以 content 判斷，可視需求調整)
-            if (typeof google !== 'undefined' && google.script && unit.content === undefined) {
-                 return new Promise((resolve) => {
-                google.script.run
-                    .withSuccessHandler(fullUnitData => {
-                        // Cache the full data by replacing the lightweight object
-                        db[gradeDbKey][unitIndex] = fullUnitData;
-                        resolve(fullUnitData);
-                    })
-                        .withFailureHandler(error => {
-                            console.warn("GAS fetch failed for unit, using existing local data.", error);
-                            // 若後端讀取失敗，不要報錯，直接回傳目前本地擁有的資料
-                            resolve(unit);
-                        })
-                        .getUnitData(id);
-            });
+            // 檢查是否已在快取中擁有完整資料
+            if (unit.content === undefined) {
+                if (typeof google !== 'undefined' && google.script) {
+                    return new Promise((resolve) => {
+                        google.script.run
+                            .withSuccessHandler(fullUnitData => {
+                                db[gradeDbKey][unitIndex] = fullUnitData;
+                                resolve(fullUnitData);
+                            })
+                            .withFailureHandler(error => {
+                                console.warn("GAS fetch failed for unit, using existing local data.", error);
+                                resolve(unit);
+                            })
+                            .getUnitData(id, unit.fileId);
+                    });
+                } else {
+                    // 本地測試時從 mock_data.json 獲取
+                    console.log(`Running locally, trying to load unit ${id} from mock data...`);
+                    let response;
+                    try {
+                        response = await fetch('./mock_data.json');
+                    } catch (e) {
+                        response = await fetch('../docs/mock_data.json');
+                    }
+                    const fallbackData = await response.json();
+                    const gradeData = fallbackData[gradeDbKey] || [];
+                    const fallbackUnit = gradeData.find(u => u.id === id);
+                    if (fallbackUnit) {
+                        db[gradeDbKey][unitIndex] = fallbackUnit;
+                        return fallbackUnit;
+                    }
+                }
             }
             return unit;
         }
